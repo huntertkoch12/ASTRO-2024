@@ -1,53 +1,50 @@
-// Include necessary libraries and configuration settings
+//*******************************************//
+//             Include Libraries             //
+//*******************************************//
+
 #include "config.h"
 
-// Create an instance of the Adafruit_BNO055 class to communicate with the BNO055 sensor
-Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
+//*******************************************//
+//       Create Sensor & Radio Instances     //
+//*******************************************//
 
-// Initialize an instance of the RH_RF95 class for LoRa communication
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
 RH_RF95 rf95(RFM95_CS, RFM95_INT);
 
-// Function to initialize the LoRa radio
+//*******************************************//
+//            Initialization Block           //
+//*******************************************//
+
+// Initialize LoRa Radio
 void initRadio() {
-  // Configure the LED and Reset pins as output
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(RFM95_RST, OUTPUT);
   digitalWrite(RFM95_RST, HIGH);
-
-  // Initialize serial communication at a baud rate of 115200
+  
   Serial.begin(115200);
-  while (!Serial) {
-    // Wait for the serial port to connect (necessary for Leonardo-type boards)
-    delay(1);
-  }
+  while (!Serial) delay(1);
   delay(100);
-
-  // Display a startup message
+  
   Serial.println("Feather LoRa RX Test!");
-
-  // Manually reset the LoRa radio
   digitalWrite(RFM95_RST, LOW);
   delay(10);
   digitalWrite(RFM95_RST, HIGH);
   delay(10);
-
-  // Attempt to initialize the LoRa radio
+  
   if (!rf95.init()) {
     Serial.println("LoRa radio initialization failed");
     Serial.println("Uncomment '#define SERIAL_DEBUG' in RH_RF95.cpp for detailed debug info");
-    while (1);  // Enter an infinite loop to halt further execution
+    while (1);
   }
   Serial.println("LoRa radio initialization successful!");
-
-  // Set the LoRa radio's operating frequency
+  
   if (!rf95.setFrequency(RF95_FREQ)) {
     Serial.println("Failed to set LoRa frequency!");
-    while (1);  // Enter an infinite loop to halt further execution
+    while (1);
   }
   Serial.print("Frequency set to: ");
   Serial.println(RF95_FREQ);
-
-  // Configure the LoRa radio settings based on parameters defined in config.h
+  
   rf95.setTxPower(TX_POWER, false);
   rf95.setSignalBandwidth(BANDWIDTH * 1000);
   rf95.setSpreadingFactor(SPREADING_FACTOR);
@@ -55,73 +52,79 @@ void initRadio() {
   rf95.setPreambleLength(PREAMBLE_LENGTH);
 }
 
-// Function to receive a message and send a reply
+// Initialize BNO055 Sensor
+void initBNO055() {
+  Serial.begin(115200);
+  Serial.println("Orientation Sensor Test\n");
+  
+  if (!bno.begin()) {
+    Serial.println("Oops, no BNO055 detected. Please check your wiring or I2C address!");
+    while (1);
+  }
+  delay(1000);
+  bno.setExtCrystalUse(true);
+}
+
+// Initialize SD Card
+const int chipSelect = 10;
+SdFat sd;
+SdFile dataFile;
+
+void setupSDCard() {
+  Serial.print("Initializing SD card...");
+  
+  if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
+    Serial.println("initialization failed!");
+    return;
+  }
+  Serial.println("initialization done.");
+  
+  if (dataFile.open("datalog.txt", O_WRITE | O_CREAT | O_APPEND)) {
+    dataFile.println("Starting data log:");
+    dataFile.println("Time, Pitch, Roll, Yaw, AccelX, AccelY, AccelZ, GyroX, GyroY, GyroZ, MagX, MagY, MagZ");
+    dataFile.close();
+    Serial.println("Data log started");
+  } else {
+    Serial.println("error opening datalog.txt");
+  }
+}
+
+//*******************************************//
+//              Runtime Block                //
+//*******************************************//
+
+// Receive Message and Send Reply
 void receiveAndReply() {
-  // Check if a message is available to be received
   if (rf95.available()) {
-    // Buffer to store the incoming message
     uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
     uint8_t len = sizeof(buf);
 
-    // Try to receive the message
     if (rf95.recv(buf, &len)) {
-      // Indicate reception with the LED
       digitalWrite(LED_BUILTIN, HIGH);
-
-      // Print the received message to the Serial Monitor
       RH_RF95::printBuffer("Received: ", buf, len);
       Serial.print("Received message: ");
       Serial.println((char*)buf);
       Serial.print("Received Signal Strength Indicator (RSSI): ");
       Serial.println(rf95.lastRssi(), DEC);
-
-      // Print the Signal to Noise Ratio (SNR) of the last received message
       Serial.print("Signal to Noise Ratio (SNR): ");
       Serial.println(rf95.lastSNR(), DEC);
-
-      // Prepare the reply message
+      
       uint8_t data[] = "And hello back to you!";
-
-      // Send the reply
       rf95.send(data, sizeof(data));
       rf95.waitPacketSent();
       Serial.println("Reply sent!");
-
-      // Turn off the LED
       digitalWrite(LED_BUILTIN, LOW);
     } else {
-      // Inform if message reception failed
       Serial.println("Message reception failed!");
     }
   }
 }
 
-// Function to initialize the BNO055 sensor
-void initBNO055() {
-  // Initialize serial communication at a baud rate of 115200
-  Serial.begin(115200);
-  Serial.println("Orientation Sensor Test");
-  Serial.println("");
-
-  // Attempt to initialize the BNO055 sensor
-  if (!bno.begin()) {
-    Serial.println("Oops, no BNO055 detected. Please check your wiring or I2C address!");
-    while (1);  // Enter an infinite loop to halt further execution
-  }
-  delay(1000);
-
-  // Use the external crystal for better accuracy
-  bno.setExtCrystalUse(true);
-}
-
-// Function to log data from the BNO055 sensor
+// Log BNO055 Sensor Data
 void logBNO055Data() {
-  // Get the system status values (mainly for debugging purposes)
   uint8_t system_status, self_test_results, system_error;
-  system_status = self_test_results = system_error = 0;
   bno.getSystemStatus(&system_status, &self_test_results, &system_error);
 
-  // Print out the system status values
   Serial.print("System Status: 0x");
   Serial.println(system_status, HEX);
   Serial.print("Self Test: 0x");
@@ -129,7 +132,6 @@ void logBNO055Data() {
   Serial.print("System Error: 0x");
   Serial.println(system_error, HEX);
   
-  // Get orientation data
   imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
   Serial.print("Orientation: Pitch ");
   Serial.print(euler.x());
@@ -137,8 +139,7 @@ void logBNO055Data() {
   Serial.print(euler.y());
   Serial.print(", Yaw ");
   Serial.println(euler.z());
-
-  // Get accelerometer data
+  
   imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
   Serial.print("Accelerometer: X ");
   Serial.print(accel.x());
@@ -146,8 +147,7 @@ void logBNO055Data() {
   Serial.print(accel.y());
   Serial.print(", Z ");
   Serial.println(accel.z());
-
-  // Get gyroscope data
+  
   imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
   Serial.print("Gyroscope: X ");
   Serial.print(gyro.x());
@@ -155,8 +155,7 @@ void logBNO055Data() {
   Serial.print(gyro.y());
   Serial.print(", Z ");
   Serial.println(gyro.z());
-
-  // Get magnetometer data
+  
   imu::Vector<3> mag = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
   Serial.print("Magnetometer: X ");
   Serial.print(mag.x());
@@ -169,3 +168,39 @@ void logBNO055Data() {
   delay(500);
 }
 
+void logDataToSD() {
+  // Open the file
+  if (!dataFile.open("datalog.txt", O_WRITE | O_CREAT | O_APPEND)) {
+    Serial.println("Error opening datalog.txt");
+    return;
+  }
+
+  // If the file is open, write to it
+  if (dataFile) {
+    // Get current time since the program started
+    unsigned long currentTime = millis();
+
+    // Get BNO055 data
+    imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+    imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
+    imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
+    imu::Vector<3> mag = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
+
+    // Write data to SD card
+    dataFile.print(currentTime);
+    dataFile.print(", ");
+    dataFile.print(euler.x()); dataFile.print(", "); dataFile.print(euler.y()); dataFile.print(", "); dataFile.print(euler.z());
+    dataFile.print(", ");
+    dataFile.print(accel.x()); dataFile.print(", "); dataFile.print(accel.y()); dataFile.print(", "); dataFile.print(accel.z());
+    dataFile.print(", ");
+    dataFile.print(gyro.x()); dataFile.print(", "); dataFile.print(gyro.y()); dataFile.print(", "); dataFile.print(gyro.z());
+    dataFile.print(", ");
+    dataFile.print(mag.x()); dataFile.print(", "); dataFile.print(mag.y()); dataFile.print(", "); dataFile.println(mag.z());
+
+    // Close the file
+    dataFile.close();
+  } else {
+    // If the file didn't open, print an error
+    Serial.println("Error opening datalog.txt");
+  }
+}
