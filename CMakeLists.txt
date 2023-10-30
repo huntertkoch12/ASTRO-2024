@@ -2,6 +2,7 @@
 cmake_minimum_required(VERSION 3.13)
 
 include(pico-sdk/pico_sdk_init.cmake)
+# include($ENV{PICO_SDK_PATH}/pico_sdk_init.cmake)
 
 project(ASTRO2024 C CXX ASM)
 
