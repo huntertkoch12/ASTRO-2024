@@ -8,8 +8,9 @@
 //       Create Sensor & Radio Instances     //
 //*******************************************//
 
-Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
 RH_RF95 rf95(RFM95_CS, RFM95_INT);
+Adafruit_MPL3115A2 baro = Adafruit_MPL3115A2();
 
 //*******************************************//
 //            Initialization Block           //
@@ -80,14 +81,26 @@ void setupSDCard() {
   Serial.println("initialization done.");
   
   if (dataFile.open("datalog.txt", O_WRITE | O_CREAT | O_APPEND)) {
-    dataFile.println("Starting data log:");
-    dataFile.println("Time, Pitch, Roll, Yaw, AccelX, AccelY, AccelZ, GyroX, GyroY, GyroZ, MagX, MagY, MagZ");
-    dataFile.close();
-    Serial.println("Data log started");
-  } else {
-    Serial.println("error opening datalog.txt");
+  dataFile.println("Time, Pitch, Roll, Yaw, AccelX, AccelY, AccelZ, GyroX, GyroY, GyroZ, MagX, MagY, MagZ, Pressure, Altitude, Temperature");
+  dataFile.close();
+  Serial.println("Data log started");
+} else {
+  Serial.println("error opening datalog.txt");
+}
+
+}
+
+// Initalize Altimeter
+
+void initMPL3115A2() {
+  Serial.println("Initializing MPL3115A2 Sensor");
+  
+  if (!baro.begin()) {
+    Serial.println("Could not find a valid MPL3115A2 sensor, check wiring!");
+    while (1);
   }
 }
+
 
 //*******************************************//
 //              Runtime Block                //
@@ -168,6 +181,7 @@ void logBNO055Data() {
   delay(500);
 }
 
+// Log Data to SD Card
 void logDataToSD() {
   // Open the file
   if (!dataFile.open("datalog.txt", O_WRITE | O_CREAT | O_APPEND)) {
@@ -186,6 +200,11 @@ void logDataToSD() {
     imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
     imu::Vector<3> mag = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
 
+    // Get MPL3115A2 data
+    float pressure = baro.getPressure();   // Pressure in Pascals
+    float altitude = baro.getAltitude();   // Altitude in meters
+    float temperature = baro.getTemperature(); // Temperature in degrees Celsius
+
     // Write data to SD card
     dataFile.print(currentTime);
     dataFile.print(", ");
@@ -195,7 +214,9 @@ void logDataToSD() {
     dataFile.print(", ");
     dataFile.print(gyro.x()); dataFile.print(", "); dataFile.print(gyro.y()); dataFile.print(", "); dataFile.print(gyro.z());
     dataFile.print(", ");
-    dataFile.print(mag.x()); dataFile.print(", "); dataFile.print(mag.y()); dataFile.print(", "); dataFile.println(mag.z());
+    dataFile.print(mag.x()); dataFile.print(", "); dataFile.print(mag.y()); dataFile.print(", "); dataFile.print(mag.z());
+    dataFile.print(", ");
+    dataFile.print(pressure); dataFile.print(", "); dataFile.print(altitude); dataFile.print(", "); dataFile.println(temperature);
 
     // Close the file
     dataFile.close();
@@ -203,4 +224,16 @@ void logDataToSD() {
     // If the file didn't open, print an error
     Serial.println("Error opening datalog.txt");
   }
+}
+
+
+// Log MPL3115A2 Sensor Data to Serial Monitor
+void logMPL3115A2Data() {
+  float pressure = baro.getPressure();   // Pressure in Pascals
+  float altitude = baro.getAltitude();   // Altitude in meters
+  float temperature = baro.getTemperature(); // Temperature in degrees Celsius
+
+  Serial.print("Pressure: "); Serial.print(pressure); Serial.println(" Pa");
+  Serial.print("Altitude: "); Serial.print(altitude); Serial.println(" m");
+  Serial.print("Temperature: "); Serial.print(temperature); Serial.println(" C");
 }
