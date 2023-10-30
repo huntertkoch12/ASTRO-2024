@@ -1,4 +1,3 @@
-
 // Include the configuration settings
 #include "config.h"
 
