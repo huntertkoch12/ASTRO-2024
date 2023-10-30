@@ -1,26 +1,36 @@
 #include "config.h"
 
+// Declaration of external functions from other files or libraries
 extern void initRadio();
 extern void receiveAndReply();
+extern void initBNO055();
+extern void logBNO055Data();
 
 void setup() {
-  // Initialization for core 0 (if any)
+  // Initialize serial communication at 115200 baud rate
   Serial.begin(115200);
+  while (!Serial) {
+    delay(1); // Wait for the serial connection to be established
+  }
   
-  while (!Serial) delay(1);
-
   Serial.println("Initialization on Core 0!");
+  
+  // Initialize the BNO055 sensor
+  initBNO055();
 }
 
 void loop() {
-  // Main loop for core 0
+  // Continuously log BNO055 sensor data
+  logBNO055Data();
+  
 }
 
 void setup1() {
+  // Initialize the LoRa radio
   initRadio();
 }
 
 void loop1() {
+  // Continuously check for incoming messages and respond
   receiveAndReply();
 }
-
