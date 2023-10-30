@@ -11,6 +11,7 @@
 #include <Adafruit_BNO055.h>
 #include <SdFat.h>
 #include <SPI.h>
+#include <Adafruit_MPL3115A2.h>
 
 //*******************************************//
 //             LoRa Settings                 //
@@ -27,19 +28,13 @@
 #define PREAMBLE_LENGTH 8          // Preamble Length (LoRa)
 
 //*******************************************//
-//             BNO055 Settings               //
-//*******************************************//
-
-#define BNO055_SDA_PIN 4           // SDA pin (BNO055)
-#define BNO055_SCL_PIN 5           // SCL pin (BNO055)
-
-//*******************************************//
 //           External Declarations           //
 //*******************************************//
 
 extern RH_RF95 rf95;              // LoRa Radio Object
 extern SdFat sd;                  // SD Card Object
 extern SdFile dataFile;           // Data File Object
+extern Adafruit_MPL3115A2 baro;   // Altimeter Object
 
 //*******************************************//
 //         Function Prototypes               //
@@ -56,3 +51,30 @@ void logBNO055Data();             // Log Data from BNO055 Sensor
 // SD Card Functions
 void setupSDCard();               // Initialize SD Card
 void logDataToSD();               // Log Data to SD Card
+
+// Altimeter Functions
+void initMPL3115A2();
+void logMPL3115A2Data();
+
+/*
+ * RP2040 Pin Configuration for Sensors
+ *
+ * I2C Configuration for BNO055 and MPL3115A2:
+ * - SDA (Serial Data Line): Connect to GPIO2 (SDA)
+ * - SCL (Serial Clock Line): Connect to GPIO3 (SCL)
+ *
+ * SPI Configuration for SD Card:
+ * - MISO (Master In Slave Out): Connect to GPIO8 (MISO)
+ * - MOSI (Master Out Slave In): Connect to GPIO15 (MOSI)
+ * - SCK (Serial Clock): Connect to GPIO14 (SCK)
+ * - CS (Chip Select): Connect to GPIO10 (D10)
+ *
+ * LoRa (RFM95) Configuration:
+ * - CS (Chip Select): Connect to GPIO16 (RFM95_CS)
+ * - RST (Reset): Connect to GPIO17 (RFM95_RST)
+ * - Other specific LoRa pins as defined in the LoRa library and configuration
+ *
+ * UART Configuration for Serial Communication:
+ * - TX (Transmit): Connect to GPIO0 (TX)
+ * - RX (Receive): Connect to GPIO1 (RX)
+ */
