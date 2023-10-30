@@ -13,8 +13,7 @@ void setup() {
 }
 
 void loop() {
-  // Main loop for core 0 (if any)
-  // This can be left empty if not needed
+  // Main loop for core 0
 }
 
 void setup1() {
