@@ -53,6 +53,11 @@ extern void logBNO055Data();
 extern void logDataToSD();
 extern void setupSDCard();
 
+// Alitemter Functions
+extern void initMPL3115A2();
+extern void logMPL3115A2Data();
+
+
 //*******************************************//
 //                 Setup                     //
 //*******************************************//
@@ -65,9 +70,14 @@ void setup() {
     }
     Serial.println("Initialization on Core 0!");
 
+    // Initialize I2C and SPI
+    Wire.begin();  // Use default I2C pins
+    SPI.begin();   // Use default SPI pins
+
     // Initialize Sensor and SD Card
     initBNO055();
     setupSDCard();
+    initMPL3115A2();
 }
 
 //*******************************************//
@@ -80,6 +90,8 @@ void loop() {
     
     // Log Data to SD Card
     logDataToSD();
+    logMPL3115A2Data();
+
 }
 
 //*******************************************//
