@@ -1,36 +1,64 @@
 #include "config.h"
 
-// Declaration of external functions from other files or libraries
+//*******************************************//
+//           External Declarations           //
+//*******************************************//
+
+// LoRa Radio Functions
 extern void initRadio();
 extern void receiveAndReply();
+
+// BNO055 Sensor Functions
 extern void initBNO055();
 extern void logBNO055Data();
 
+// SD Card Functions
+extern void logDataToSD();
+extern void setupSDCard();
+
+//*******************************************//
+//                 Setup                     //
+//*******************************************//
+
 void setup() {
-  // Initialize serial communication at 115200 baud rate
-  Serial.begin(115200);
-  while (!Serial) {
-    delay(1); // Wait for the serial connection to be established
-  }
-  
-  Serial.println("Initialization on Core 0!");
-  
-  // Initialize the BNO055 sensor
-  initBNO055();
+    // Initialize Serial Communication
+    Serial.begin(115200);
+    while (!Serial) {
+        delay(1); // Wait for Serial Connection
+    }
+    Serial.println("Initialization on Core 0!");
+
+    // Initialize Sensor and SD Card
+    initBNO055();
+    setupSDCard();
 }
+
+//*******************************************//
+//                 Loop                      //
+//*******************************************//
 
 void loop() {
-  // Continuously log BNO055 sensor data
-  logBNO055Data();
-  
+    // Log Data from BNO055 Sensor
+    logBNO055Data();
+    
+    // Log Data to SD Card
+    logDataToSD();
 }
+
+//*******************************************//
+//                Setup1                     //
+//*******************************************//
 
 void setup1() {
-  // Initialize the LoRa radio
-  initRadio();
+    // Initialize LoRa Radio
+    initRadio();
 }
 
+//*******************************************//
+//                Loop1                      //
+//*******************************************//
+
 void loop1() {
-  // Continuously check for incoming messages and respond
-  receiveAndReply();
+    // Handle LoRa Communication
+    receiveAndReply();
 }
