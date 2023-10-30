@@ -22,7 +22,8 @@ const uint8_t LORA_CODING_RATE = 5;        // Coding rate (valid values are betw
 const uint8_t LORA_SPREADING_FACTOR = 7;   // Spreading factor (valid values are between 6 and 12)
 
 
-// Don't need this but comes with the configuration file (will likely be more applicable to PEM and LEM, so I just copied it over here in case we want to do something with height interrupts, they get priority on core 0).
+// Don't need this but comes with the configuration file (will likely be more applicable to PEM and LEM, 
+// so I just copied it over here in case we want to do something with height interrupts, they get priority on core 0).
 // BNO055 Configuration
 const int BNO055_INT_PIN = -1; // Change to the correct pin if you are using interrupts
 
