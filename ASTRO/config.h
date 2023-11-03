@@ -12,6 +12,10 @@
 #include <SdFat.h>
 #include <SPI.h>
 #include <Adafruit_MPL3115A2.h>
+#include <Adafruit_GPS.h>
+#include <Adafruit_NeoPixel.h>
+#include <Adafruit_GPS.h>
+#include <RTClib.h>
 
 //*******************************************//
 //             LoRa Settings                 //
@@ -28,6 +32,13 @@
 #define PREAMBLE_LENGTH 8          // Preamble Length (LoRa)
 
 //*******************************************//
+//             GPS Settings                  //
+//*******************************************//
+
+#define GPS_RX_PIN 18  // Connect to the TX pin of the GPS module
+#define GPS_TX_PIN 19  // Connect to the RX pin of the GPS module
+
+//*******************************************//
 //           External Declarations           //
 //*******************************************//
 
@@ -35,6 +46,14 @@ extern RH_RF95 rf95;              // LoRa Radio Object
 extern SdFat sd;                  // SD Card Object
 extern SdFile dataFile;           // Data File Object
 extern Adafruit_MPL3115A2 baro;   // Altimeter Object
+extern Adafruit_NeoPixel strip;
+extern RTC_DS3231 rtc;
+
+//*******************************************//
+//                 NEOPIXEL                  //
+//*******************************************//
+#define NEOPIXEL_PIN PIN_NEOPIXEL   // GPIO4 is used for the onboard NeoPixel
+#define NEOPIXEL_NUM 1   // Number of NeoPixels
 
 //*******************************************//
 //         Function Prototypes               //
@@ -55,6 +74,13 @@ void logDataToSD();               // Log Data to SD Card
 // Altimeter Functions
 void initMPL3115A2();
 void logMPL3115A2Data();
+
+// GPS Functions
+void initGPS();
+void transmitGPSData();
+
+// RTC Functions
+void setupRTC();
 
 /*
  * RP2040 Pin Configuration for Sensors
