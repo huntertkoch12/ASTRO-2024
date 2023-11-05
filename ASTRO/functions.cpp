@@ -62,6 +62,14 @@ void initRadio() {
   }
   Serial.print("Frequency set to: ");
   Serial.println(RF95_FREQ);
+
+  // Configure the LoRa radio settings based on parameters defined in config.h
+  // Defaults after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol, CRC on
+  rf95.setTxPower(TX_POWER, false);
+  rf95.setSignalBandwidth(BANDWIDTH * 1000);
+  rf95.setSpreadingFactor(SPREADING_FACTOR);
+  rf95.setCodingRate4(CODING_RATE);
+  rf95.setPreambleLength(PREAMBLE_LENGTH);
   
   
 }
@@ -153,6 +161,10 @@ void initMPL3115A2() {
 // Initialize the GPS
 void initGPS() {
   GPS.begin(9600);
+  // Flush any old data from the GPS serial buffer
+  while (GPS.available() > 0) {
+    GPS.read();
+  }
   GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
   GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);
   GPS.sendCommand(PGCMD_ANTENNA);
@@ -181,7 +193,20 @@ void setupRTC() {
   }
 }
 
-
+// Set GPS rate
+void setGPSUpdateRate(int milliseconds) {
+  // Create a buffer for the command string
+  char command[20];
+  
+  // Format the command string with the desired update interval
+  snprintf(command, sizeof(command), "$PMTK220,%d*1C\r\n", milliseconds);
+  
+  // Send the command to the GPS module
+  GPS.print(command);
+  
+  // Wait for the command to be sent
+  delay(100);
+}
 //*******************************************//
 //              Runtime Block                //
 //*******************************************//
@@ -194,55 +219,54 @@ String getTimeStamp() {
   return String(buf);
 }
 
-// Receive Message and Transmit Reply
 void transmitGPSData() {
-  static unsigned long lastTime = 0;
-  static const unsigned long timeout = 3000;  // 3 seconds timeout
+  static unsigned int packetCounter = 0; // Packet counter
+
+  Serial.println("Checking GPS Data..."); // Debug print
 
   // Check if new NMEA data is available
   while (GPS.available()) {
     char c = GPS.read();
+    Serial.print(c); // Print raw GPS data
     if (GPS.newNMEAreceived()) {
-      if (!GPS.parse(GPS.lastNMEA())) return;
+      Serial.println("New NMEA sentence received."); // Debug print
+      if (!GPS.parse(GPS.lastNMEA())) {
+        Serial.println("Failed to parse NMEA sentence."); // Debug print
+        break; // Exit the loop if the sentence can't be parsed
+      }
+      
+      // Check if we have a GPS fix
+      if (GPS.fix) {
+        Serial.println("GPS fix obtained."); // Debug print
+        packetCounter++; // Increment the packet counter
+
+        // Prepare the GPS data into a transmission buffer
+        char transmitBuffer[60]; // Increased buffer size to accommodate packet counter
+        snprintf(transmitBuffer, sizeof(transmitBuffer), "Packet %u, Lat:%f%s, Lon:%f%s",
+                 packetCounter,
+                 GPS.latitude, GPS.lat == 'N' ? "N" : "S",
+                 GPS.longitude, GPS.lon == 'E' ? "E" : "W");
+
+        // Transmit the GPS data
+        rf95.send((uint8_t *)transmitBuffer, strlen(transmitBuffer) + 1); // +1 to include null-terminator
+        Serial.println(transmitBuffer); // Debug print
+        break; // Exit the loop after transmitting data
+      } else {
+        Serial.println("GPS fix lost."); // Debug print
+        break; // Exit the loop if no fix
+      }
     }
   }
 
-  // Check if we have a GPS fix
-  if (GPS.fix) {
-    Serial.print("Location: ");
-    Serial.print(GPS.latitude, 4); Serial.print(GPS.lat);
-    Serial.print(", ");
-    Serial.print(GPS.longitude, 4); Serial.println(GPS.lon);
-
-    // Prepare the GPS data into a transmission buffer
-    char transmitBuffer[50];
-    snprintf(transmitBuffer, sizeof(transmitBuffer), "Lat:%f%s, Lon:%f%s", 
-             GPS.latitude, GPS.lat == 'N' ? "N" : "S", 
-             GPS.longitude, GPS.lon == 'E' ? "E" : "W");
-    
-    // Transmit the GPS data
-    rf95.send((uint8_t *)transmitBuffer, strlen(transmitBuffer) + 1); // +1 to include null-terminator
-    rf95.waitPacketSent(); // Wait until the packet is sent
-    
-    // Turn on the built-in LED after transmitting
-    digitalWrite(LED_BUILTIN, HIGH);
-
-    Serial.println("GPS data transmitted!");
-
-    lastTime = millis();
-  } else if (millis() - lastTime > timeout) {
-    // Turn off the built-in LED if we don't get a fix
-    digitalWrite(LED_BUILTIN, LOW);
-  }
+  Serial.println("GPS Data Check Complete."); // Debug print
 }
-
 
 
 // Log BNO055 Sensor Data
 void logBNO055Data() {
   uint8_t system_status, self_test_results, system_error;
   bno.getSystemStatus(&system_status, &self_test_results, &system_error);
-
+  /*
   imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
   Serial.print("Orientation: Pitch ");
   Serial.print(euler.x());
@@ -276,7 +300,9 @@ void logBNO055Data() {
   Serial.println(mag.z());
 
   Serial.println("");
+
   delay(500);
+  */
 }
 
 void logDataToSD() {
@@ -330,7 +356,31 @@ void logMPL3115A2Data() {
   float altitude = baro.getAltitude();   // Altitude in meters
   float temperature = baro.getTemperature(); // Temperature in degrees Celsius
 
-  Serial.print("Pressure: "); Serial.print(pressure); Serial.println(" Pa");
-  Serial.print("Altitude: "); Serial.print(altitude); Serial.println(" m");
-  Serial.print("Temperature: "); Serial.print(temperature); Serial.println(" C");
+  //Serial.print("Pressure: "); Serial.print(pressure); Serial.println(" Pa");
+  //Serial.print("Altitude: "); Serial.print(altitude); Serial.println(" m");
+  //Serial.print("Temperature: "); Serial.print(temperature); Serial.println(" C");
 }
+
+void rawGPS() {
+  static String nmeaSentence = ""; // Buffer to hold NMEA sentence
+  // Check if new data is available from the GPS module
+  while (GPS.available() > 0) {
+    char c = GPS.read();  // Read a byte of the serial data
+    
+    // Check if the character is the end of a sentence
+    if (c == '\n') {
+      // Append the character to complete the sentence
+      nmeaSentence += c;
+      
+      // Print the full NMEA sentence to the serial
+      Serial.print(nmeaSentence);
+      
+      // Clear the buffer for the next sentence
+      nmeaSentence = "";
+    } else {
+      // Append the character to the buffer
+      nmeaSentence += c;
+    }
+  }
+}
+
