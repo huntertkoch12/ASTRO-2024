@@ -14,7 +14,6 @@
 #include <Adafruit_MPL3115A2.h>
 #include <Adafruit_GPS.h>
 #include <Adafruit_NeoPixel.h>
-#include <Adafruit_GPS.h>
 #include <RTClib.h>
 
 //*******************************************//
@@ -22,14 +21,14 @@
 //*******************************************//
 
 #define RF95_FREQ 915.0            // LoRa Frequency (MHz)
-#define RFM95_CS 16                // Chip Select Pin (LoRa)
-#define RFM95_INT 21               // Interrupt Pin (LoRa)
-#define RFM95_RST 17               // Reset Pin (LoRa)
+#define RFM95_CS   16
+#define RFM95_INT  21
+#define RFM95_RST  17
 #define TX_POWER 23                // Transmit Power (LoRa, dBm)
 #define BANDWIDTH 125              // Bandwidth (LoRa, kHz)
-#define SPREADING_FACTOR 7         // Spreading Factor (LoRa)
-#define CODING_RATE 5              // Coding Rate (LoRa, 4/x)
-#define PREAMBLE_LENGTH 8          // Preamble Length (LoRa)
+#define SPREADING_FACTOR 12         // Spreading Factor (LoRa)
+#define CODING_RATE 8              // Coding Rate (LoRa, 4/x)
+#define PREAMBLE_LENGTH 12          // Preamble Length (LoRa)
 
 //*******************************************//
 //             GPS Settings                  //
@@ -78,6 +77,9 @@ void logMPL3115A2Data();
 // GPS Functions
 void initGPS();
 void transmitGPSData();
+void rawGPS();
+void setGPSUpdateRate();
+void setGPSUpdateRate(int milliseconds);
 
 // RTC Functions
 void setupRTC();
