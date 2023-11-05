@@ -60,6 +60,8 @@ extern void logMPL3115A2Data();
 // GPS Functions
 extern void initGPS();
 extern void transmitGPSData();
+extern void rawGPS();
+extern void setGPSUpdateRate(int milliseconds);
 
 // RTC Functions
 extern void setupRTC();
@@ -156,7 +158,12 @@ const int numColorRuntime = sizeof(colorsRuntime) / sizeof(colorsRuntime[0]);
 //*******************************************//
 
 void setup() {
+
     Serial.println("Initialization on Core 0!");
+
+    // Turn off BUILTIN LED
+    digitalWrite(LED_BUILTIN, LOW);
+
 
     // Initialize LED for debugging
     strip.begin();
@@ -185,6 +192,7 @@ void setup() {
     delay(500); // Optional: Add a delay to make the color change noticeable
     
     initGPS();
+    setGPSUpdateRate(2000);    
     changeColorSetup();
     delay(500); // Optional: Add a delay to make the color change noticeable
 
@@ -209,10 +217,12 @@ void loop() {
     // Log Data to SD Card
     logDataToSD();
 
-    printRTCDateTime();
+    // printRTCDateTime();
 
     // Change color to initalize loop
-    changeColorRuntime();
+    strip.Color(255, 255, 255), // White
+    strip.setBrightness(100);  // Set brightness (0-255)
+    strip.show(); // Initialize all pixels to 'off'
 }
 
 //*******************************************//
@@ -233,8 +243,8 @@ void setup1() {
 void loop1() {
 
     // Handle LoRa Communication
-    transmitGPSData();
-
+    rawGPS();
+transmitGPSData();
 }
 
 //*******************************************//
