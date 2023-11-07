@@ -10,6 +10,7 @@
 
 RH_RF95 rf95(RFM95_CS, RFM95_INT);
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 //*******************************************//
 //            Initialization Block           //
@@ -66,4 +67,19 @@ void initRadio() {
   rf95.setSpreadingFactor(SPREADING_FACTOR);
   rf95.setCodingRate4(CODING_RATE);
   rf95.setPreambleLength(PREAMBLE_LENGTH);
+}
+
+// Initialize display
+void initDisplay(){
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { 
+    Serial.println(F("SSD1306 allocation failed"));
+    while (1) {
+      strip.setPixelColor(0, strip.Color(255, 0, 0)); // Flash red to indicate error
+      strip.show();
+      delay(250);
+      strip.clear();
+      delay(250);
+    }
+  }
+
 }
