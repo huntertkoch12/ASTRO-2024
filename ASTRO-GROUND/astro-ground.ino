@@ -137,8 +137,21 @@ void loop() {
       RH_RF95::printBuffer("Received: ", buf, len);
       Serial.print("Got: ");
       Serial.println((char*)buf);
-       Serial.print("RSSI: ");
+      Serial.print("RSSI: ");
       Serial.println(rf95.lastRssi(), DEC);
+
+      display.setTextSize(1); // Draw 1:1 text
+      display.setTextColor(SSD1306_WHITE);
+      display.setCursor(0, 0);
+      display.println(F("scroll"));
+      display.display();      // Show initial text
+      delay(100);
+
+      // Scroll text for text off-screen
+      display.startscrollright(0x00, 0x0F);
+      delay(2000);
+      display.stopscroll();
+      delay(1000);
 
     } else {
       Serial.println("Receive failed");
