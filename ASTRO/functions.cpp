@@ -241,12 +241,11 @@ void transmitGPSData() {
         packetCounter++; // Increment the packet counter
 
         // Prepare the GPS data into a transmission buffer
-        char transmitBuffer[70]; // Increased buffer size to accommodate packet counter
-        snprintf(transmitBuffer, sizeof(transmitBuffer), "Packet %u, Lat:%f%s, Lon:%f%s, Alt:%f",
+        char transmitBuffer[60]; // Increased buffer size to accommodate packet counter
+        snprintf(transmitBuffer, sizeof(transmitBuffer), "Packet %u, Lat:%f%s, Lon:%f%s",
                  packetCounter,
                  GPS.latitude, GPS.lat == 'N' ? "N" : "S",
-                 GPS.longitude, GPS.lon == 'E' ? "E" : "W",
-                 baro.getAltitude());
+                 GPS.longitude, GPS.lon == 'E' ? "E" : "W");
 
         // Transmit the GPS data
         rf95.send((uint8_t *)transmitBuffer, strlen(transmitBuffer) + 1); // +1 to include null-terminator
