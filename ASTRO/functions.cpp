@@ -337,11 +337,13 @@ void logDataToSD() {
     // Get the timestamp from the RTC
     String timeStamp = getTimeStamp();
 
+    
     // Get BNO055 data
     imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
     imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
     imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
     imu::Vector<3> mag = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
+    
 
     // Get MPL3115A2 data
     float pressure = baro.getPressure();
@@ -366,7 +368,7 @@ void logDataToSD() {
     dataFile.print(", ");
     dataFile.print(pressure); dataFile.print(", "); dataFile.print(altitude); dataFile.print(", "); dataFile.println(temperature);
     dataFile.print(", ");
-    dataFile.print(ax); dataFile.print(", "); dataFile.print(ay); dataFile.print(", "); dataFile.print(ay); dataFile.print(", "); 
+    dataFile.print(ax); dataFile.print(", "); dataFile.print(ay); dataFile.print(", "); dataFile.print(ay); dataFile.print(",\n"); 
 
     // Close the file
     dataFile.close();
