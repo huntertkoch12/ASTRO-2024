@@ -15,6 +15,7 @@
 #include <Adafruit_GPS.h>
 #include <Adafruit_NeoPixel.h>
 #include <RTClib.h>
+#include <DFRobot_LIS.h>
 
 //*******************************************//
 //             LoRa Settings                 //
@@ -47,6 +48,7 @@ extern SdFile dataFile;           // Data File Object
 extern Adafruit_MPL3115A2 baro;   // Altimeter Object
 extern Adafruit_NeoPixel strip;
 extern RTC_DS3231 rtc;
+extern DFRobot_H3LIS200DL_I2C acce;
 
 //*******************************************//
 //                 NEOPIXEL                  //
@@ -73,6 +75,10 @@ void logDataToSD();               // Log Data to SD Card
 // Altimeter Functions
 void initMPL3115A2();
 void logMPL3115A2Data();
+
+// DF_Robot Functions
+void initDF_Robot();
+void logDF_RobotData();
 
 // GPS Functions
 void initGPS();
