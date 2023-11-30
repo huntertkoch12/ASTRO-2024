@@ -14,6 +14,7 @@ Adafruit_MPL3115A2 baro = Adafruit_MPL3115A2();
 Adafruit_GPS GPS(&Serial1);  // Assuming you are using UART1 for GPS
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 RTC_DS3231 rtc;
+DFRobot_H3LIS200DL_I2C acce;
 
 //*******************************************//
 //            Initialization Block           //
@@ -105,6 +106,25 @@ void initBNO055() {
 }
 
 
+void initDF_Robot(){
+  Serial.println("Initializing DF_Robot");
+  while(!acce.begin()){
+    Serial.println("DF_Robot initialization failed!");
+    strip.setPixelColor(0, strip.Color(255, 0, 0)); // Flash red to indicate error
+    strip.show();
+    delay(250);
+    strip.clear();
+    delay(250);
+  }
+  acce.setRange(DFRobot_LIS::eH3lis200dl_100g);
+  acce.setAcquireRate(DFRobot_LIS::eNormal_50HZ);
+
+  delay(1000);
+  Serial.println("DF_Robot Initialization Complete!");
+
+}
+
+
 // Initialize SD Card
 const int chipSelect = 10;
 SdFat sd;
@@ -125,12 +145,12 @@ void setupSDCard() {
   }
   Serial.println("Initialization done.");
   
-  if (dataFile.open("datalog.txt", O_WRITE | O_CREAT | O_APPEND)) {
-  dataFile.println("Time, Pitch, Roll, Yaw, AccelX, AccelY, AccelZ, GyroX, GyroY, GyroZ, MagX, MagY, MagZ, Pressure, Altitude, Temperature");
+  if (dataFile.open("datalog.csv", O_WRITE | O_CREAT | O_APPEND)) {
+  dataFile.println("Time, Pitch, Roll, Yaw, AccelX, AccelY, AccelZ, GyroX, GyroY, GyroZ, MagX, MagY, MagZ, Pressure, Altitude, Temperature, DF_X_Acceleration, DF_Y_Acceleration, DF_Z_Acceleration");
   dataFile.close();
   Serial.println("Data log started.");
 } else {
-  Serial.println("Error opening datalog.txt!");
+  Serial.println("Error opening datalog.csv!");
     while (1) {
       strip.setPixelColor(0, strip.Color(255, 0, 0)); // Flash red to indicate error
       strip.show();
@@ -189,7 +209,7 @@ void setupRTC() {
     // Manually set the date and time
     // rtc.adjust(DateTime(2023, 1, 21, 3, 0, 0));
     // Or use the compile time: (this will not be accurate if the RTC has lost power)
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    //rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
 }
 
@@ -307,8 +327,8 @@ void logBNO055Data() {
 
 void logDataToSD() {
   // Open the file
-  if (!dataFile.open("datalog.txt", O_WRITE | O_CREAT | O_APPEND)) {
-    Serial.println("Error opening datalog.txt");
+  if (!dataFile.open("datalog.csv", O_WRITE | O_CREAT | O_APPEND)) {
+    Serial.println("Error opening datalog.csv");
     return;
   }
 
@@ -328,6 +348,11 @@ void logDataToSD() {
     float altitude = baro.getAltitude();
     float temperature = baro.getTemperature();
 
+    // Get DF_Robot data
+    float ax = acce.readAccX();//Get the acceleration in the x direction
+    float ay = acce.readAccY();//Get the acceleration in the y direction
+    float az = acce.readAccZ();//Get the acceleration in the z direction
+
     // Write data to SD card
     dataFile.print(timeStamp);
     dataFile.print(", ");
@@ -340,13 +365,31 @@ void logDataToSD() {
     dataFile.print(mag.x()); dataFile.print(", "); dataFile.print(mag.y()); dataFile.print(", "); dataFile.print(mag.z());
     dataFile.print(", ");
     dataFile.print(pressure); dataFile.print(", "); dataFile.print(altitude); dataFile.print(", "); dataFile.println(temperature);
+    dataFile.print(", ");
+    dataFile.print(ax); dataFile.print(", "); dataFile.print(ay); dataFile.print(", "); dataFile.print(ay); dataFile.print(", "); 
 
     // Close the file
     dataFile.close();
   } else {
     // If the file didn't open, print an error
-    Serial.println("Error opening datalog.txt");
+    Serial.println("Error opening datalog.csv");
   }
+  Serial.println("Finished writing!");
+}
+
+void logDF_RobotData(){
+  float ax, ay, az;
+  ax = acce.readAccX();//Get the acceleration in the x direction
+  ay = acce.readAccY();//Get the acceleration in the y direction
+  az = acce.readAccZ();//Get the acceleration in the z direction
+
+  Serial.print("x: ");
+  Serial.print(ax);
+  Serial.print(" g\t  y: ");
+  Serial.print(ay);
+  Serial.print(" g\t  z: ");
+  Serial.print(az);
+  Serial.println(" g");
 }
 
 
