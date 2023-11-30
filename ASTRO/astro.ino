@@ -188,6 +188,7 @@ void setup() {
     delay(500); // Optional: Add a delay to make the color change noticeable
     
     initMPL3115A2();
+    initDF_Robot();
     changeColorSetup();
     delay(500); // Optional: Add a delay to make the color change noticeable
     
@@ -211,8 +212,11 @@ void loop() {
     // Log Data from BNO055 Sensor
     logBNO055Data();
 
-    // Log Data from Alitmeter Sensor
-    logMPL3115A2Data();
+    // Log Data from Altimeter Sensor
+    // logMPL3115A2Data();
+
+    // Log Data from DF_Robot Sensor
+    // logDF_RobotData();
 
     // Log Data to SD Card
     logDataToSD();
@@ -241,10 +245,9 @@ void setup1() {
 //*******************************************//
 
 void loop1() {
-
-    // Handle LoRa Communication
-    rawGPS();
-transmitGPSData();
+  // Handle LoRa Communication
+  rawGPS();
+  transmitGPSData();
 }
 
 //*******************************************//
