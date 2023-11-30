@@ -20,7 +20,7 @@
 //             LoRa Settings                 //
 //*******************************************//
 
-#define RF95_FREQ 915.0            // LoRa Frequency (MHz)
+#define RF95_FREQ 921.0            // LoRa Frequency (MHz)
 #define RFM95_CS   16
 #define RFM95_INT  21
 #define RFM95_RST  17
