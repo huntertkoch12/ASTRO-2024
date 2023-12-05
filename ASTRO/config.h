@@ -15,7 +15,7 @@
 #include <Adafruit_GPS.h>
 #include <Adafruit_NeoPixel.h>
 #include <RTClib.h>
-#include <DFRobot_LIS2DW12.h>
+#include <DFRobot_LIS.h>
 
 
 //*******************************************//
