@@ -15,7 +15,8 @@
 #include <Adafruit_GPS.h>
 #include <Adafruit_NeoPixel.h>
 #include <RTClib.h>
-#include <DFRobot_LIS.h>
+#include <DFRobot_LIS2DW12.h>
+
 
 //*******************************************//
 //             LoRa Settings                 //
@@ -29,7 +30,7 @@
 #define BANDWIDTH 125              // Bandwidth (LoRa, kHz)
 #define SPREADING_FACTOR 12         // Spreading Factor (LoRa)
 #define CODING_RATE 8              // Coding Rate (LoRa, 4/x)
-#define PREAMBLE_LENGTH 12          // Preamble Length (LoRa)
+#define PREAMBLE_LENGTH 12          // Preamble Length (LoRa)v
 
 //*******************************************//
 //             GPS Settings                  //
