@@ -28,7 +28,6 @@ void initRadio() {
   digitalWrite(RFM95_RST, HIGH);
   
   Serial.begin(115200);
-  while (!Serial) delay(1);
   delay(100);
   
   Serial.println("LoRa Transmission Test!");
@@ -370,9 +369,9 @@ void logDataToSD() {
     float temperature = baro.getTemperature();
 
     // Get DF_Robot data
-    float df_ax = acce.readAccX();
-    float df_ay = acce.readAccY();
-    float df_az = acce.readAccZ();
+    float df_ax = acce.readAccX();//Get the acceleration in the x direction
+    float df_ay = acce.readAccY();//Get the acceleration in the y direction
+    float df_az = acce.readAccZ();//Get the acceleration in the z direction
 
     // Write data to SD card
     // Include all the data fields here in the format you want to save them
