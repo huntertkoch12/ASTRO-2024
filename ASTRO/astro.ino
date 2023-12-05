@@ -159,6 +159,8 @@ const int numColorRuntime = sizeof(colorsRuntime) / sizeof(colorsRuntime[0]);
 
 void setup() {
 
+    Wire.begin();
+
     Serial.println("Initialization on Core 0!");
 
     // Turn off BUILTIN LED
@@ -209,6 +211,7 @@ void setup() {
 //*******************************************//
 
 void loop() {
+
     // Log Data from BNO055 Sensor
     logBNO055Data();
 
@@ -247,7 +250,7 @@ void setup1() {
 void loop1() {
   // Handle LoRa Communication
   //rawGPS();
-  //transmitGPSData();
+  transmitGPSData();
 }
 
 //*******************************************//
