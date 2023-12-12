@@ -15,6 +15,7 @@ Adafruit_GPS GPS(&Serial1);  // Assuming you are using UART1 for GPS
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 RTC_DS3231 rtc;
 DFRobot_H3LIS200DL_I2C acce;
+Adafruit_LSM6DSO32 lsm6dso32;
 
 //*******************************************//
 //            Initialization Block           //
@@ -74,11 +75,19 @@ void initRadio() {
   
 }
 
+void bno_write(uint8_t i2c_addr, uint8_t reg, uint8_t data)  // Write to Register
+{
+  Wire.beginTransmission(i2c_addr);
+  Wire.write(reg);
+  Wire.write(data);
+  Wire.endTransmission(true);  // Send Stop
+}
+
 // Initialize BNO055 Sensor
 void initBNO055() {
   Serial.begin(115200);
   Serial.println("Orientation Sensor Test\n");
-  
+
   if (!bno.begin()) {
     Serial.println("Oops, no BNO055 detected. Please check your wiring or I2C address!");
     while (1) {
@@ -89,6 +98,13 @@ void initBNO055() {
       delay(250);
     }
   }
+
+  // Set the BNO055 accelerometer to ±16g range
+  bno_write(BNO_ADDR, PAGE_ID, 1);        // Switch to register page 1
+  bno_write(BNO_ADDR, ACC_CONFIG, 0x0F);  // Set accelerometer range to ±16g
+  bno_write(BNO_ADDR, PAGE_ID, 0);        // Switch back to register page 0
+
+  // Additional configuration as needed
 
 
   delay(1000);
@@ -125,12 +141,46 @@ void initDF_Robot(){
 
 }
 
+void initLSM6DSO32() {
+  Serial.println("LSM6DSO32 Sensor Test");
+
+  if (!lsm6dso32.begin_I2C()) {
+    Serial.println("Failed to find LSM6DSO32 chip");
+    while (1) {
+      strip.setPixelColor(0, strip.Color(255, 0, 0)); // Flash red to indicate error
+      strip.show();
+      delay(250);
+      strip.clear();
+      delay(250);
+    }
+  }
+
+  Serial.println("LSM6DSO32 Found!");
+  lsm6dso32.setAccelRange(LSM6DSO32_ACCEL_RANGE_32_G);
+  lsm6dso32.setGyroRange(LSM6DS_GYRO_RANGE_250_DPS);
+
+}
+
+
+void handleError() {
+  while (1) {
+    strip.setPixelColor(0, strip.Color(255, 0, 0)); // Flash red to indicate error
+    strip.show();
+    delay(250);
+    strip.clear();
+    delay(250);
+  }
+}
 
 
 // Initialize SD Card
 const int chipSelect = 10;
 SdFat sd;
-SdFile dataFile;
+SdFile bno055File, lsm6dso32File, otherFile;
+
+const char* BNO055_FILE_NAME = "BNO055Data.csv";
+const char* LSM6DSO32_FILE_NAME = "LSM6DSO32Data.csv";
+const char* OTHER_FILE_NAME = "OtherData.csv";
 
 void setupSDCard() {
   Serial.print("Initializing SD card...");
@@ -146,21 +196,35 @@ void setupSDCard() {
     }
   }
   Serial.println("Initialization done.");
-  
-  if (dataFile.open("datalog.csv", O_WRITE | O_CREAT | O_APPEND)) {
-    dataFile.println("Time, Pitch, Roll, Yaw, AccelX, AccelY, AccelZ, GyroX, GyroY, GyroZ, MagX, MagY, MagZ, QuatW, QuatX, QuatY, QuatZ, LinAccX, LinAccY, LinAccZ, GravityX, GravityY, GravityZ, Pressure, Altitude, Temperature, DF_X_Acceleration, DF_Y_Acceleration, DF_Z_Acceleration");
-    dataFile.close();
-    Serial.println("Data log started.");
-  } else {
-    Serial.println("Error opening datalog.csv!");
-    while (1) {
-      strip.setPixelColor(0, strip.Color(255, 0, 0)); // Flash red to indicate error
-      strip.show();
-      delay(250);
-      strip.clear();
-      delay(250);
-    }
+
+  // Initialize BNO055 data file
+  if (!bno055File.open(BNO055_FILE_NAME, O_WRITE | O_CREAT | O_APPEND)) {
+    Serial.println("Error opening BNO055 data file!");
+    handleError();
   }
+  // Write headers for BNO055 file
+  bno055File.println("Timestamp, AccelX, AccelY, AccelZ, GyroX, GyroY, GyroZ, MagX, MagY, MagZ, Temp");
+  bno055File.close();
+
+  // Initialize LSM6DSO32 data file
+  if (!lsm6dso32File.open(LSM6DSO32_FILE_NAME, O_WRITE | O_CREAT | O_APPEND)) {
+    Serial.println("Error opening LSM6DSO32 data file!");
+    handleError();
+  }
+  // Write headers for LSM6DSO32 file
+  lsm6dso32File.println("Timestamp, AccelX, AccelY, AccelZ, GyroX, GyroY, GyroZ");
+  lsm6dso32File.close();
+
+  // Initialize Other data file
+  if (!otherFile.open(OTHER_FILE_NAME, O_WRITE | O_CREAT | O_APPEND)) {
+    Serial.println("Error opening Other data file!");
+    handleError();
+  }
+  // Write headers or other initialization data for Other file
+  otherFile.println("Timestamp, MPL_Pressure, MPL_Altitude, MPL_Temperature, DFLIS_AccelX, DFLIS_AccelY, DFLIS_AccelZ");
+  otherFile.close();
+
+  Serial.println("All data logs started.");
 }
 
 // Initalize Altimeter
@@ -179,7 +243,7 @@ void initMPL3115A2() {
   }
 
   // Set a different oversampling rate
-  baro.setOversamplingRate(MPL3115A2_CTRL_REG1_OS4); // Example: Set to OS4
+  baro.setOversamplingRate(MPL3115A2_CTRL_REG1_OS128); // Example: Set to OS4
   
   Serial.println("MPL3115A2 Sensor initialized with custom sampling rate.");
 }
@@ -332,84 +396,67 @@ void logBNO055Data() {
 }
 
 void logDataToSD() {
-  // Check if the SD card is present
-  if (!sd.exists("datalog.csv")) {
-    Serial.println("SD card not found or datalog.csv doesn't exist");
+  // Get the current timestamp
+  String timeStamp = getTimeStamp(); // Replace with your method to get the timestamp
 
-    // Set NeoPixel to pink color
-    strip.setPixelColor(0, strip.Color(255, 105, 180));
-    strip.show();
+  // Get data from BNO055
+  imu::Vector<3> bno055Accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
+  imu::Vector<3> bno055Gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
+  imu::Vector<3> bno055Mag = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
+  int8_t bno055Temp = bno.getTemp();
 
-    return;
+  // Log BNO055 data
+  if (bno055File.open(BNO055_FILE_NAME, O_WRITE | O_APPEND)) {
+    bno055File.print(timeStamp + ", ");
+    bno055File.print(String(bno055Accel.x()) + ", " + String(bno055Accel.y()) + ", " + String(bno055Accel.z()) + ", ");
+    bno055File.print(String(bno055Gyro.x()) + ", " + String(bno055Gyro.y()) + ", " + String(bno055Gyro.z()) + ", ");
+    bno055File.print(String(bno055Mag.x()) + ", " + String(bno055Mag.y()) + ", " + String(bno055Mag.z()) + ", ");
+    bno055File.println(String(bno055Temp));
+    bno055File.sync();
+    bno055File.close();
   }
 
-  // Open the file
-  if (!dataFile.open("datalog.csv", O_WRITE | O_CREAT | O_APPEND)) {
-    Serial.println("Error opening datalog.csv");
-    return;
+  // Get data from LSM6DSO32
+  sensors_event_t accel;
+  sensors_event_t gyro;
+  sensors_event_t temp;
+  lsm6dso32.getEvent(&accel, &gyro, &temp);
+  float lsm6dso32AccelX = accel.acceleration.x;
+  float lsm6dso32AccelY = accel.acceleration.y;
+  float lsm6dso32AccelZ = accel.acceleration.z;
+  float lsm6dso32GyroX = gyro.gyro.x;
+  float lsm6dso32GyroY = gyro.gyro.y;
+  float lsm6dso32GyroZ = gyro.gyro.z;
+
+  // Log LSM6DSO32 data
+  if (lsm6dso32File.open(LSM6DSO32_FILE_NAME, O_WRITE | O_APPEND)) {
+    lsm6dso32File.print(timeStamp + ", ");
+    lsm6dso32File.println(String(lsm6dso32AccelX) + ", " + String(lsm6dso32AccelY) + ", " + String(lsm6dso32AccelZ) + ", ");
+    lsm6dso32File.println(String(lsm6dso32GyroX) + ", " + String(lsm6dso32GyroY) + ", " + String(lsm6dso32GyroZ));
+    lsm6dso32File.sync();
+    lsm6dso32File.close();
   }
 
-  // If the file is open, write to it
-  if (dataFile) {
-    // Get the timestamp from the RTC
-    String timeStamp = getTimeStamp();
+  // Get data from MPL3115A2
+  float mplPressure = baro.getPressure();
+  float mplAltitude = baro.getAltitude();
+  float mplTemperature = baro.getTemperature();
 
-    // Get all BNO055 data
-    imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
-    imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
-    imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
-    imu::Vector<3> mag = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
-    imu::Quaternion quat = bno.getQuat();
-    imu::Vector<3> linAccel = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
-    imu::Vector<3> grav = bno.getVector(Adafruit_BNO055::VECTOR_GRAVITY);
+  // Get data from DFRobot_LIS
+  float dfLisAccelX = acce.readAccX();
+  float dfLisAccelY = acce.readAccY();
+  float dfLisAccelZ = acce.readAccZ();
 
-    // Get MPL3115A2 data
-    float pressure = baro.getPressure();
-    float altitude = baro.getAltitude();
-    float temperature = baro.getTemperature();
-
-    // Get DF_Robot data
-    float df_ax = acce.readAccX();//Get the acceleration in the x direction
-    float df_ay = acce.readAccY();//Get the acceleration in the y direction
-    float df_az = acce.readAccZ();//Get the acceleration in the z direction
-
-    // Write data to SD card
-    // Include all the data fields here in the format you want to save them
-    dataFile.print(timeStamp);
-    dataFile.print(", ");
-    dataFile.print(euler.x()); dataFile.print(", "); dataFile.print(euler.y()); dataFile.print(", "); dataFile.print(euler.z());
-    dataFile.print(", ");
-    dataFile.print(accel.x()); dataFile.print(", "); dataFile.print(accel.y()); dataFile.print(", "); dataFile.print(accel.z());
-    dataFile.print(", ");
-    dataFile.print(gyro.x()); dataFile.print(", "); dataFile.print(gyro.y()); dataFile.print(", "); dataFile.print(gyro.z());
-    dataFile.print(", ");
-    dataFile.print(mag.x()); dataFile.print(", "); dataFile.print(mag.y()); dataFile.print(", "); dataFile.print(mag.z());
-    dataFile.print(", ");
-    dataFile.print(quat.w()); dataFile.print(", "); dataFile.print(quat.x()); dataFile.print(", "); dataFile.print(quat.y()); dataFile.print(", "); dataFile.print(quat.z());
-    dataFile.print(", ");
-    dataFile.print(linAccel.x()); dataFile.print(", "); dataFile.print(linAccel.y()); dataFile.print(", "); dataFile.print(linAccel.z());
-    dataFile.print(", ");
-    dataFile.print(grav.x()); dataFile.print(", "); dataFile.print(grav.y()); dataFile.print(", "); dataFile.print(grav.z());
-    dataFile.print(", ");
-    dataFile.print(pressure); dataFile.print(", "); dataFile.print(altitude); dataFile.print(", "); dataFile.print(temperature);
-    dataFile.print(", ");
-    dataFile.print(df_ax); dataFile.print(", "); dataFile.print(df_ay); dataFile.print(", "); dataFile.print(df_az);
-    dataFile.print(",\n");
-
-    // Close the file
-    dataFile.close();
-  } else {
-    // If the file didn't open, print an error
-    Serial.println("Error opening datalog.csv");
+  // Log Other data
+  if (otherFile.open(OTHER_FILE_NAME, O_WRITE | O_APPEND)) {
+    otherFile.print(timeStamp + ", ");
+    otherFile.print(String(mplPressure) + ", " + String(mplAltitude) + ", " + String(mplTemperature) + ", ");
+    otherFile.println(String(dfLisAccelX) + ", " + String(dfLisAccelY) + ", " + String(dfLisAccelZ));
+    otherFile.sync();
+    otherFile.close();
   }
-
-  // Flush the data to make sure it's written to the SD card
-  if (!dataFile.sync()) {
-    Serial.println("Error: Data not saved properly");
-  }
-
-  Serial.println("Finished writing!");
 }
+
 
 
 void logDF_RobotData(){
