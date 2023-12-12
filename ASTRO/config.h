@@ -16,7 +16,7 @@
 #include <Adafruit_NeoPixel.h>
 #include <RTClib.h>
 #include <DFRobot_LIS.h>
-
+#include <Adafruit_LSM6DSO32.h>
 
 //*******************************************//
 //             LoRa Settings                 //
@@ -50,12 +50,24 @@ extern Adafruit_MPL3115A2 baro;   // Altimeter Object
 extern Adafruit_NeoPixel strip;
 extern RTC_DS3231 rtc;
 extern DFRobot_H3LIS200DL_I2C acce;
+extern Adafruit_LSM6DSO32 lsm6dso32;
 
 //*******************************************//
 //                 NEOPIXEL                  //
 //*******************************************//
 #define NEOPIXEL_PIN PIN_NEOPIXEL   // GPIO4 is used for the onboard NeoPixel
 #define NEOPIXEL_NUM 1   // Number of NeoPixels
+
+//*******************************************//
+//                   BNO055                  //
+//*******************************************//
+#define RST             11    // BNO RST pin number
+#define BNO_ADDR        0x28  // I2C address of first BNO
+#define PAGE_ID         0x07  // BNO register: page select
+#define ACC_DATA_X_LSB  0x08  // BNO page 0 register: Acceleration Data X LSB
+#define OPR_MODE        0x3D  // BNO page 0 register: Operation Mode <3:0>
+#define ACC_CONFIG      0x08  // BNO page 1 register: Accelerometer Config
+#define MODE_AMG        0x07  // non-fusion mode with accel/gyro/mag
 
 //*******************************************//
 //         Function Prototypes               //
@@ -90,6 +102,9 @@ void setGPSUpdateRate(int milliseconds);
 
 // RTC Functions
 void setupRTC();
+
+// Backup IMU Function
+void initLSM6DSO32();
 
 /*
  * RP2040 Pin Configuration for Sensors
