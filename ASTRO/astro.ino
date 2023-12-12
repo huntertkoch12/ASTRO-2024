@@ -66,6 +66,9 @@ extern void setGPSUpdateRate(int milliseconds);
 // RTC Functions
 extern void setupRTC();
 
+// Backup IMU Function
+extern void initLSM6DSO32();
+
 //*******************************************//
 //                 Colors                    //
 //*******************************************//
@@ -199,6 +202,10 @@ void setup() {
     changeColorSetup();
     delay(500); // Optional: Add a delay to make the color change noticeable
 
+    initLSM6DSO32();
+    changeColorSetup();
+    delay(500); // Optional: Add a delay to make the color change noticeable
+
     setupRTC();
     changeColorSetup();
     delay(500); // Optional: Add a delay to make the color change noticeable    
@@ -213,7 +220,7 @@ void setup() {
 void loop() {
 
     // Log Data from BNO055 Sensor
-    logBNO055Data();
+    // logBNO055Data();
 
     // Log Data from Altimeter Sensor
     // logMPL3115A2Data();
@@ -226,10 +233,6 @@ void loop() {
 
     // printRTCDateTime();
 
-    // Change color to initalize loop
-    strip.Color(255, 255, 255), // White
-    strip.setBrightness(100);  // Set brightness (0-255)
-    strip.show(); // Initialize all pixels to 'off'
 }
 
 //*******************************************//
