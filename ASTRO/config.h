@@ -8,7 +8,6 @@
 #include <RH_RF95.h>
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_BNO055.h>
 #include <SdFat.h>
 #include <SPI.h>
 #include <Adafruit_MPL3115A2.h>
@@ -61,10 +60,13 @@ extern Adafruit_LSM6DSO32 lsm6dso32;
 //*******************************************//
 //                   BNO055                  //
 //*******************************************//
-#define RST             11    // BNO RST pin number
+
+#define RST             12    // BNO RST pin number
 #define BNO_ADDR        0x28  // I2C address of first BNO
 #define PAGE_ID         0x07  // BNO register: page select
 #define ACC_DATA_X_LSB  0x08  // BNO page 0 register: Acceleration Data X LSB
+#define MAG_DATA_X_LSB  0x0E  // BNO page 0 register: Magnetometer Data X LSB
+#define GYR_DATA_X_LSB  0x14  // BNO page 0 register: Gyroscope Data X LSB
 #define OPR_MODE        0x3D  // BNO page 0 register: Operation Mode <3:0>
 #define ACC_CONFIG      0x08  // BNO page 1 register: Accelerometer Config
 #define MODE_AMG        0x07  // non-fusion mode with accel/gyro/mag
