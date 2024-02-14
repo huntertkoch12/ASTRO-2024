@@ -242,7 +242,7 @@ void loop() {
 void setup1() {
 
   // Initialize LoRa Radio
-  initRadio();
+  // initRadio();
 
 }
 
@@ -252,8 +252,8 @@ void setup1() {
 
 void loop1() {
   // Handle LoRa Communication
-  //rawGPS();
-  transmitGPSData();
+  // rawGPS();
+  // transmitGPSData();
 }
 
 //*******************************************//
