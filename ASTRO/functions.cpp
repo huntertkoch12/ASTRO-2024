@@ -8,7 +8,6 @@
 //       Create Sensor & Radio Instances     //
 //*******************************************//
 
-Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
 RH_RF95 rf95(RFM95_CS, RFM95_INT);
 Adafruit_MPL3115A2 baro = Adafruit_MPL3115A2();
 Adafruit_GPS GPS(&Serial1);  // Assuming you are using UART1 for GPS
@@ -21,27 +20,53 @@ Adafruit_LSM6DSO32 lsm6dso32;
 //            Initialization Block           //
 //*******************************************//
 
+// BNO055
+
+void bno_write(uint8_t i2c_addr, uint8_t reg, uint8_t data)  // write one BNO register
+{
+  Wire.beginTransmission(i2c_addr);
+  Wire.write(reg);
+  Wire.write(data);
+  Wire.endTransmission(true);  // send stop
+}
+
+void bno_read_multiple(uint8_t i2c_addr, uint8_t reg, uint8_t* buf, uint8_t length)  // read multiple BNO registers into buffer
+{
+  for (uint32_t n = 0; n < length; n++) {
+    if ((n & 31) == 0)  // transfer up to 32 bytes at a time
+    {
+      Wire.beginTransmission(i2c_addr);
+      Wire.write(reg + n);
+      Wire.endTransmission(false);  // send restart
+      Wire.requestFrom(i2c_addr, min(length - n, 32));
+    }
+    *buf++ = Wire.read();
+  }
+}
+
+// BNO055
+
 // Initialize LoRa Radio
 void initRadio() {
 
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(RFM95_RST, OUTPUT);
   digitalWrite(RFM95_RST, HIGH);
-  
+
   Serial.begin(115200);
   delay(100);
-  
+
   Serial.println("LoRa Transmission Test!");
   digitalWrite(RFM95_RST, LOW);
   delay(10);
   digitalWrite(RFM95_RST, HIGH);
   delay(10);
-  
+
   if (!rf95.init()) {
     Serial.println("LoRa initialization failed!");
     Serial.println("Uncomment '#define SERIAL_DEBUG' in RH_RF95.cpp for detailed debug info!");
     while (1) {
-      strip.setPixelColor(0, strip.Color(255, 0, 0)); // Flash red to indicate error
+      strip.setPixelColor(0, strip.Color(255, 0, 0));  // Flash red to indicate error
       strip.show();
       delay(250);
       strip.clear();
@@ -50,11 +75,11 @@ void initRadio() {
   }
 
   Serial.println("LoRa initialization successful!");
-  
+
   if (!rf95.setFrequency(RF95_FREQ)) {
     Serial.println("Failed to set LoRa frequency!");
     while (1) {
-      strip.setPixelColor(0, strip.Color(255, 0, 0)); // Flash red to indicate error
+      strip.setPixelColor(0, strip.Color(255, 0, 0));  // Flash red to indicate error
       strip.show();
       delay(250);
       strip.clear();
@@ -71,63 +96,38 @@ void initRadio() {
   rf95.setSpreadingFactor(SPREADING_FACTOR);
   rf95.setCodingRate4(CODING_RATE);
   rf95.setPreambleLength(PREAMBLE_LENGTH);
-  
-  
-}
-
-void bno_write(uint8_t i2c_addr, uint8_t reg, uint8_t data)  // Write to Register
-{
-  Wire.beginTransmission(i2c_addr);
-  Wire.write(reg);
-  Wire.write(data);
-  Wire.endTransmission(true);  // Send Stop
 }
 
 // Initialize BNO055 Sensor
 void initBNO055() {
   Serial.begin(115200);
-  Serial.println("Orientation Sensor Test\n");
 
-  if (!bno.begin()) {
-    Serial.println("Oops, no BNO055 detected. Please check your wiring or I2C address!");
-    while (1) {
-      strip.setPixelColor(0, strip.Color(255, 0, 0)); // Flash red to indicate error
-      strip.show();
-      delay(250);
-      strip.clear();
-      delay(250);
-    }
-  }
+  digitalWrite(RST, 0);
+  pinMode(RST, OUTPUT);  // assert BNO RST
+  delay(1);
+  pinMode(RST, INPUT_PULLUP);  // deassert BNO RST
+  delay(800);                  // allow time for BNO to boot
+
+  bno_write(BNO_ADDR, PAGE_ID, 1);          // register page 1
+  bno_write(BNO_ADDR, ACC_CONFIG, 0x0F);    // accel +/-16g range (default value 0x0D)
+  bno_write(BNO_ADDR, PAGE_ID, 0);          // register page 0
+  bno_write(BNO_ADDR, OPR_MODE, MODE_AMG);  // operating mode
+  delay(10);                                // allow time for BNO to switch modes
 
   // Set the BNO055 accelerometer to ±16g range
   bno_write(BNO_ADDR, PAGE_ID, 1);        // Switch to register page 1
   bno_write(BNO_ADDR, ACC_CONFIG, 0x0F);  // Set accelerometer range to ±16g
-  bno_write(BNO_ADDR, PAGE_ID, 0);        // Switch back to register page 0
-
-  // Additional configuration as needed
-
-
-  delay(1000);
-  bno.setExtCrystalUse(true);
-
-  // Declare variables
-  uint8_t system_status, self_test_results, system_error;
-  bno.getSystemStatus(&system_status, &self_test_results, &system_error);
-
-  Serial.print("System Status: 0x");
-  Serial.println(system_status, HEX);
-  Serial.print("Self Test: 0x");
-  Serial.println(self_test_results, HEX);
-  Serial.print("System Error: 0x");
-  Serial.println(system_error, HEX);
+  Serial.println(BNO_ADDR);
+  Serial.println(ACC_CONFIG);
+  bno_write(BNO_ADDR, PAGE_ID, 0);  // Switch back to register page 0
 }
 
 
-void initDF_Robot(){
+void initDF_Robot() {
   Serial.println("Initializing DF_Robot");
-  while(!acce.begin()){
+  while (!acce.begin()) {
     Serial.println("DF_Robot initialization failed!");
-    strip.setPixelColor(0, strip.Color(255, 0, 0)); // Flash red to indicate error
+    strip.setPixelColor(0, strip.Color(255, 0, 0));  // Flash red to indicate error
     strip.show();
     delay(250);
     strip.clear();
@@ -138,7 +138,6 @@ void initDF_Robot(){
 
   delay(1000);
   Serial.println("DF_Robot Initialization Complete!");
-
 }
 
 void initLSM6DSO32() {
@@ -147,7 +146,7 @@ void initLSM6DSO32() {
   if (!lsm6dso32.begin_I2C()) {
     Serial.println("Failed to find LSM6DSO32 chip");
     while (1) {
-      strip.setPixelColor(0, strip.Color(255, 0, 0)); // Flash red to indicate error
+      strip.setPixelColor(0, strip.Color(255, 0, 0));  // Flash red to indicate error
       strip.show();
       delay(250);
       strip.clear();
@@ -158,13 +157,12 @@ void initLSM6DSO32() {
   Serial.println("LSM6DSO32 Found!");
   lsm6dso32.setAccelRange(LSM6DSO32_ACCEL_RANGE_32_G);
   lsm6dso32.setGyroRange(LSM6DS_GYRO_RANGE_250_DPS);
-
 }
 
 
 void handleError() {
   while (1) {
-    strip.setPixelColor(0, strip.Color(255, 0, 0)); // Flash red to indicate error
+    strip.setPixelColor(0, strip.Color(255, 0, 0));  // Flash red to indicate error
     strip.show();
     delay(250);
     strip.clear();
@@ -184,11 +182,11 @@ const char* OTHER_FILE_NAME = "OtherData.csv";
 
 void setupSDCard() {
   Serial.print("Initializing SD card...");
-  
+
   if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
     Serial.println("Initialization failed!");
     while (1) {
-      strip.setPixelColor(0, strip.Color(255, 0, 0)); // Flash red to indicate error
+      strip.setPixelColor(0, strip.Color(255, 0, 0));  // Flash red to indicate error
       strip.show();
       delay(250);
       strip.clear();
@@ -203,7 +201,7 @@ void setupSDCard() {
     handleError();
   }
   // Write headers for BNO055 file
-  bno055File.println("Timestamp, AccelX, AccelY, AccelZ, GyroX, GyroY, GyroZ, MagX, MagY, MagZ, Temp");
+  bno055File.println("Timestamp, AccelX, AccelY, AccelZ, GyroX, GyroY, GyroZ, MagX, MagY, MagZ");
   bno055File.close();
 
   // Initialize LSM6DSO32 data file
@@ -227,14 +225,15 @@ void setupSDCard() {
   Serial.println("All data logs started.");
 }
 
+
 // Initalize Altimeter
 void initMPL3115A2() {
   Serial.println("Initializing MPL3115A2 Sensor");
-  
+
   if (!baro.begin()) {
     Serial.println("Could not find a valid MPL3115A2 sensor, check wiring!");
     while (1) {
-      strip.setPixelColor(0, strip.Color(255, 0, 0)); // Flash red to indicate error
+      strip.setPixelColor(0, strip.Color(255, 0, 0));  // Flash red to indicate error
       strip.show();
       delay(250);
       strip.clear();
@@ -243,8 +242,8 @@ void initMPL3115A2() {
   }
 
   // Set a different oversampling rate
-  baro.setOversamplingRate(MPL3115A2_CTRL_REG1_OS128); // Example: Set to OS4
-  
+  baro.setOversamplingRate(MPL3115A2_CTRL_REG1_OS128);  // Example: Set to OS4
+
   Serial.println("MPL3115A2 Sensor initialized with custom sampling rate.");
 }
 
@@ -266,7 +265,7 @@ void setupRTC() {
   if (!rtc.begin()) {
     Serial.println("Couldn't find RTC!");
     while (1) {
-      strip.setPixelColor(0, strip.Color(255, 0, 0)); // Flash red to indicate error
+      strip.setPixelColor(0, strip.Color(255, 0, 0));  // Flash red to indicate error
       strip.show();
       delay(250);
       strip.clear();
@@ -287,19 +286,20 @@ void setupRTC() {
 void setGPSUpdateRate(int milliseconds) {
   // Create a buffer for the command string
   char command[20];
-  
+
   // Format the command string with the desired update interval
   snprintf(command, sizeof(command), "$PMTK220,%d*1C\r\n", milliseconds);
-  
+
   // Send the command to the GPS module
   GPS.print(command);
-  
+
   // Wait for the command to be sent
   delay(100);
 }
 //*******************************************//
 //              Runtime Block                //
 //*******************************************//
+
 
 // Get Time
 String getTimeStamp() {
@@ -310,108 +310,129 @@ String getTimeStamp() {
 }
 
 void transmitGPSData() {
-  static unsigned int packetCounter = 0; // Packet counter
+  static unsigned int packetCounter = 0;  // Packet counter
 
-  Serial.println("Checking GPS Data..."); // Debug print
+  Serial.println("Checking GPS Data...");  // Debug print
 
   // Check if new NMEA data is available
   while (GPS.available()) {
     char c = GPS.read();
-    Serial.print(c); // Print raw GPS data
+    Serial.print(c);  // Print raw GPS data
     if (GPS.newNMEAreceived()) {
-      Serial.println("New NMEA sentence received."); // Debug print
+      Serial.println("New NMEA sentence received.");  // Debug print
       if (!GPS.parse(GPS.lastNMEA())) {
-        Serial.println("Failed to parse NMEA sentence."); // Debug print
-        break; // Exit the loop if the sentence can't be parsed
+        Serial.println("Failed to parse NMEA sentence.");  // Debug print
+        break;                                             // Exit the loop if the sentence can't be parsed
       }
-      
+
       // Check if we have a GPS fix
       if (GPS.fix) {
-        Serial.println("GPS fix obtained."); // Debug print
-        packetCounter++; // Increment the packet counter
+        Serial.println("GPS fix obtained.");  // Debug print
+        packetCounter++;                      // Increment the packet counter
 
         // Prepare the GPS data into a transmission buffer
-        char transmitBuffer[60]; // Increased buffer size to accommodate packet counter
+        char transmitBuffer[60];  // Increased buffer size to accommodate packet counter
         snprintf(transmitBuffer, sizeof(transmitBuffer), "Packet %u, Lat:%f%s, Lon:%f%s",
                  packetCounter,
                  GPS.latitude, GPS.lat == 'N' ? "N" : "S",
                  GPS.longitude, GPS.lon == 'E' ? "E" : "W");
 
         // Transmit the GPS data
-        rf95.send((uint8_t *)transmitBuffer, strlen(transmitBuffer) + 1); // +1 to include null-terminator
-        Serial.println(transmitBuffer); // Debug print
-        break; // Exit the loop after transmitting data
+        rf95.send((uint8_t*)transmitBuffer, strlen(transmitBuffer) + 1);  // +1 to include null-terminator
+        Serial.println(transmitBuffer);                                   // Debug print
+        break;                                                            // Exit the loop after transmitting data
       } else {
-        Serial.println("GPS fix lost."); // Debug print
-        break; // Exit the loop if no fix
+        Serial.println("GPS fix lost.");  // Debug print
+        break;                            // Exit the loop if no fix
       }
     }
   }
 
-  Serial.println("GPS Data Check Complete."); // Debug print
+  Serial.println("GPS Data Check Complete.");  // Debug print
 }
 
 
 // Log BNO055 Sensor Data
 void logBNO055Data() {
-  uint8_t system_status, self_test_results, system_error;
-  bno.getSystemStatus(&system_status, &self_test_results, &system_error);
-  /*
-  imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
-  Serial.print("Orientation: Pitch ");
-  Serial.print(euler.x());
-  Serial.print(", Roll ");
-  Serial.print(euler.y());
-  Serial.print(", Yaw ");
-  Serial.println(euler.z());
-  
-  imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
-  Serial.print("Accelerometer: X ");
-  Serial.print(accel.x());
-  Serial.print(", Y ");
-  Serial.print(accel.y());
-  Serial.print(", Z ");
-  Serial.println(accel.z());
-  
-  imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
-  Serial.print("Gyroscope: X ");
-  Serial.print(gyro.x());
-  Serial.print(", Y ");
-  Serial.print(gyro.y());
-  Serial.print(", Z ");
-  Serial.println(gyro.z());
-  
-  imu::Vector<3> mag = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
-  Serial.print("Magnetometer: X ");
-  Serial.print(mag.x());
-  Serial.print(", Y ");
-  Serial.print(mag.y());
-  Serial.print(", Z ");
-  Serial.println(mag.z());
+  struct
+  {
+    int16_t acc_x, acc_y, acc_z;
+  } s;
 
+  struct
+  {
+    int16_t mag_x, mag_y, mag_z;
+  } m;
+
+  struct
+  {
+    int16_t gyr_x, gyr_y, gyr_z;
+  } g;
+
+  bno_read_multiple(BNO_ADDR, ACC_DATA_X_LSB, (uint8_t*)&s, sizeof s);  // read accelerometer data
+
+  bno_read_multiple(BNO_ADDR, MAG_DATA_X_LSB, (uint8_t*)&m, sizeof m);  // read magnetometer data
+
+  bno_read_multiple(BNO_ADDR, GYR_DATA_X_LSB, (uint8_t*)&g, sizeof g);  // read gyroscope data
+
+  // Print accelerometer data
+  Serial.print("Accelerometer (100 * m/s^2): ");
+  Serial.print(s.acc_x);
+  Serial.print(" ");
+  Serial.print(s.acc_y);
+  Serial.print(" ");
+  Serial.print(s.acc_z);
   Serial.println("");
 
-  delay(500);
-  */
+  // Print magnetometer data
+  Serial.print("Magnetometer: ");
+  Serial.print(m.mag_x);
+  Serial.print(" ");
+  Serial.print(m.mag_y);
+  Serial.print(" ");
+  Serial.print(m.mag_z);
+  Serial.println("");
+
+  // Print gyroscope data
+  Serial.print("Gyro: ");
+  Serial.print(g.gyr_x);
+  Serial.print(" ");
+  Serial.print(g.gyr_y);
+  Serial.print(" ");
+  Serial.print(g.gyr_z);
+  Serial.println("");
+
+  delay(100);
 }
 
 void logDataToSD() {
+  struct {
+    int16_t acc_x, acc_y, acc_z;
+  } s;
+
+  struct {
+    int16_t mag_x, mag_y, mag_z;
+  } m;
+
+  struct {
+    int16_t gyr_x, gyr_y, gyr_z;
+  } g;
+
+  // Read data from BNO055
+  bno_read_multiple(BNO_ADDR, ACC_DATA_X_LSB, (uint8_t*)&s, sizeof s);
+  bno_read_multiple(BNO_ADDR, MAG_DATA_X_LSB, (uint8_t*)&m, sizeof m);
+  bno_read_multiple(BNO_ADDR, GYR_DATA_X_LSB, (uint8_t*)&g, sizeof g);
+
   // Get the current timestamp
-  String timeStamp = getTimeStamp(); // Replace with your method to get the timestamp
+  String timeStamp = getTimeStamp();  // Replace with your method to get the timestamp
 
-  // Get data from BNO055
-  imu::Vector<3> bno055Accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
-  imu::Vector<3> bno055Gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
-  imu::Vector<3> bno055Mag = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
-  int8_t bno055Temp = bno.getTemp();
-
-  // Log BNO055 data
+  // Log BNO055 data to SD card
   if (bno055File.open(BNO055_FILE_NAME, O_WRITE | O_APPEND)) {
     bno055File.print(timeStamp + ", ");
-    bno055File.print(String(bno055Accel.x()) + ", " + String(bno055Accel.y()) + ", " + String(bno055Accel.z()) + ", ");
-    bno055File.print(String(bno055Gyro.x()) + ", " + String(bno055Gyro.y()) + ", " + String(bno055Gyro.z()) + ", ");
-    bno055File.print(String(bno055Mag.x()) + ", " + String(bno055Mag.y()) + ", " + String(bno055Mag.z()) + ", ");
-    bno055File.println(String(bno055Temp));
+    bno055File.print(String(s.acc_x) + ", " + String(s.acc_y) + ", " + String(s.acc_z) + ", ");
+    bno055File.print(String(g.gyr_x) + ", " + String(g.gyr_y) + ", " + String(g.gyr_z) + ", ");
+    bno055File.print(String(m.mag_x) + ", " + String(m.mag_y) + ", " + String(m.mag_z));
+    bno055File.println();
     bno055File.sync();
     bno055File.close();
   }
@@ -431,7 +452,7 @@ void logDataToSD() {
   // Log LSM6DSO32 data
   if (lsm6dso32File.open(LSM6DSO32_FILE_NAME, O_WRITE | O_APPEND)) {
     lsm6dso32File.print(timeStamp + ", ");
-    lsm6dso32File.println(String(lsm6dso32AccelX) + ", " + String(lsm6dso32AccelY) + ", " + String(lsm6dso32AccelZ) + ", ");
+    lsm6dso32File.print(String(lsm6dso32AccelX) + ", " + String(lsm6dso32AccelY) + ", " + String(lsm6dso32AccelZ) + ", ");
     lsm6dso32File.println(String(lsm6dso32GyroX) + ", " + String(lsm6dso32GyroY) + ", " + String(lsm6dso32GyroZ));
     lsm6dso32File.sync();
     lsm6dso32File.close();
@@ -459,11 +480,11 @@ void logDataToSD() {
 
 
 
-void logDF_RobotData(){
+void logDF_RobotData() {
   float ax, ay, az;
-  ax = acce.readAccX();//Get the acceleration in the x direction
-  ay = acce.readAccY();//Get the acceleration in the y direction
-  az = acce.readAccZ();//Get the acceleration in the z direction
+  ax = acce.readAccX();  //Get the acceleration in the x direction
+  ay = acce.readAccY();  //Get the acceleration in the y direction
+  az = acce.readAccZ();  //Get the acceleration in the z direction
 
   Serial.print("x: ");
   Serial.print(ax);
@@ -477,9 +498,9 @@ void logDF_RobotData(){
 
 // Log MPL3115A2 Sensor Data to Serial Monitor
 void logMPL3115A2Data() {
-  float pressure = baro.getPressure();   // Pressure in Pascals
-  float altitude = baro.getAltitude();   // Altitude in meters
-  float temperature = baro.getTemperature(); // Temperature in degrees Celsius
+  float pressure = baro.getPressure();        // Pressure in Pascals
+  float altitude = baro.getAltitude();        // Altitude in meters
+  float temperature = baro.getTemperature();  // Temperature in degrees Celsius
 
   //Serial.print("Pressure: "); Serial.print(pressure); Serial.println(" Pa");
   //Serial.print("Altitude: "); Serial.print(altitude); Serial.println(" m");
@@ -487,19 +508,19 @@ void logMPL3115A2Data() {
 }
 
 void rawGPS() {
-  static String nmeaSentence = ""; // Buffer to hold NMEA sentence
+  static String nmeaSentence = "";  // Buffer to hold NMEA sentence
   // Check if new data is available from the GPS module
   while (GPS.available() > 0) {
     char c = GPS.read();  // Read a byte of the serial data
-    
+
     // Check if the character is the end of a sentence
     if (c == '\n') {
       // Append the character to complete the sentence
       nmeaSentence += c;
-      
+
       // Print the full NMEA sentence to the serial
       Serial.print(nmeaSentence);
-      
+
       // Clear the buffer for the next sentence
       nmeaSentence = "";
     } else {
