@@ -185,31 +185,31 @@ void setup()
   changeColorSetup();
   delay(500); // Optional: Add a delay to make the color change noticeable
 
-  // Initialize Sensor and SD Card
-  initBNO055();
-  changeColorSetup();
-  delay(500); // Optional: Add a delay to make the color change noticeable
-
-  setupSDCard();
-  changeColorSetup();
-  delay(500); // Optional: Add a delay to make the color change noticeable
-
-  initMPL3115A2();
-  changeColorSetup();
-  delay(500); // Optional: Add a delay to make the color change noticeable
-
-  // initGPS();
-  // setGPSUpdateRate(2000);
+  // // Initialize Sensor and SD Card
+  // initBNO055();
   // changeColorSetup();
   // delay(500); // Optional: Add a delay to make the color change noticeable
 
-  initLSM6DSO32();
+  // setupSDCard();
+  // changeColorSetup();
+  // delay(500); // Optional: Add a delay to make the color change noticeable
+
+  // initMPL3115A2();
+  // changeColorSetup();
+  // delay(500); // Optional: Add a delay to make the color change noticeable
+
+  initGPS();
+  setGPSUpdateRate(2000);
   changeColorSetup();
   delay(500); // Optional: Add a delay to make the color change noticeable
 
-  setupRTC();
-  changeColorSetup();
-  delay(500); // Optional: Add a delay to make the color change noticeable
+  // initLSM6DSO32();
+  // changeColorSetup();
+  // delay(500); // Optional: Add a delay to make the color change noticeable
+
+  // setupRTC();
+  // changeColorSetup();
+  // delay(500); // Optional: Add a delay to make the color change noticeable
 }
 
 //*******************************************//
@@ -218,39 +218,8 @@ void setup()
 
 void loop()
 {
-
-  // Log Data from BNO055 Sensor
-  // logBNO055Data();
-
-  // Log Data from Altimeter Sensor
-  // logMPL3115A2Data();
-
-  // Log Data to SD Card
-  logDataToSD();
-
-  // printRTCDateTime();
-}
-
-//*******************************************//
-//                Setup1                     //
-//*******************************************//
-
-void setup1()
-{
-
-  // Initialize LoRa Radio
-  // initRadio();
-}
-
-//*******************************************//
-//                Loop1                      //
-//*******************************************//
-
-void loop1()
-{
-  // Handle LoRa Communication
-  // rawGPS();
-  // transmitGPSData();
+  rawGPS();
+  transmitGPSData();
 }
 
 //*******************************************//

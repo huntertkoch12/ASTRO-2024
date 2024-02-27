@@ -319,8 +319,6 @@ void transmitGPSData()
 {
   static unsigned int packetCounter = 0; // Packet counter
 
-  Serial.println("Checking GPS Data..."); // Debug print
-
   // Check if new NMEA data is available
   while (GPS.available())
   {
@@ -351,7 +349,7 @@ void transmitGPSData()
         // Transmit the GPS data
         rf95.send((uint8_t *)transmitBuffer, strlen(transmitBuffer) + 1); // +1 to include null-terminator
         Serial.println(transmitBuffer);                                   // Debug print
-        break;                                                            // Exit the loop after transmitting data
+        break;
       }
       else
       {
@@ -360,8 +358,6 @@ void transmitGPSData()
       }
     }
   }
-
-  Serial.println("GPS Data Check Complete."); // Debug print
 }
 
 // Log BNO055 Sensor Data
