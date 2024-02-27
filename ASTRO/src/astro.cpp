@@ -67,11 +67,15 @@ extern void transmitGPSData();
 extern void rawGPS();
 extern void setGPSUpdateRate(int milliseconds);
 
-// RTC Functions
-extern void setupRTC();
-
 // Backup IMU Function
 extern void initLSM6DSO32();
+
+// ENS160 Functions
+extern void initENS160();
+extern void logENS160();
+
+// RTC Functions
+extern void setupRTC();
 
 //*******************************************//
 //                 Colors                    //
@@ -207,6 +211,10 @@ void setup()
   changeColorSetup();
   delay(500); // Optional: Add a delay to make the color change noticeable
 
+  initENS160();
+  changeColorSetup();
+  delay(500);
+
   setupRTC();
   changeColorSetup();
   delay(500); // Optional: Add a delay to make the color change noticeable
@@ -219,16 +227,22 @@ void setup()
 void loop()
 {
 
+  // Log Data to SD Card
+  logDataToSD();
+
+  /* Debug */
+
   // Log Data from BNO055 Sensor
   // logBNO055Data();
 
   // Log Data from Altimeter Sensor
   // logMPL3115A2Data();
 
-  // Log Data to SD Card
-  logDataToSD();
+  // Log Data from ENS160 Sensor
+  logENS160();
 
-  // printRTCDateTime();
+  // Log Data from RTC Clock
+  printRTCDateTime();
 }
 
 //*******************************************//

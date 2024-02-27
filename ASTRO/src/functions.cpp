@@ -14,6 +14,7 @@ Adafruit_GPS GPS(&Serial1); // Assuming you are using UART1 for GPS
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 RTC_DS3231 rtc;
 Adafruit_LSM6DSO32 lsm6dso32;
+ScioSense_ENS160 ens160(0x53);
 
 //*******************************************//
 //            Initialization Block           //
@@ -287,6 +288,38 @@ void setupRTC()
   }
 }
 
+void initENS160()
+{
+  // Attempt to initialize the ENS160 sensor
+  ens160.begin();
+
+  // Check if the sensor is available and successfully initialized
+  if (ens160.available())
+  {
+    // Sensor initialized successfully, you can proceed with further configurations or readings
+    Serial.println("ENS160 initialization successful!");
+
+    // Optionally, print sensor version information
+    Serial.print("\tRev: ");
+    Serial.print(ens160.getMajorRev());
+    Serial.print(".");
+    Serial.print(ens160.getMinorRev());
+    Serial.print(".");
+    Serial.println(ens160.getBuild());
+
+    // Set the sensor to standard operating mode
+    Serial.print("\tStandard mode ");
+    Serial.println(ens160.setMode(ENS160_OPMODE_STD) ? "done." : "failed!");
+  }
+  else
+  {
+    // Sensor initialization failed, handle the error accordingly
+    Serial.println("ENS160 initialization failed!");
+
+    // You can add additional error handling here, such as blinking an LED to indicate failure or retrying initialization
+  }
+}
+
 // Set GPS rate
 void setGPSUpdateRate(int milliseconds)
 {
@@ -302,6 +335,7 @@ void setGPSUpdateRate(int milliseconds)
   // Wait for the command to be sent
   delay(100);
 }
+
 //*******************************************//
 //              Runtime Block                //
 //*******************************************//
@@ -503,6 +537,38 @@ void logMPL3115A2Data()
   // Serial.print("Pressure: "); Serial.print(pressure); Serial.println(" Pa");
   // Serial.print("Altitude: "); Serial.print(altitude); Serial.println(" m");
   // Serial.print("Temperature: "); Serial.print(temperature); Serial.println(" C");
+}
+
+void logENS160()
+{
+  if (ens160.available())
+  {
+    ens160.measure(true);
+    ens160.measureRaw(true);
+
+    Serial.print("AQI: ");
+    Serial.print(ens160.getAQI());
+    Serial.print("\t");
+    Serial.print("TVOC: ");
+    Serial.print(ens160.getTVOC());
+    Serial.print("ppb\t");
+    Serial.print("eCO2: ");
+    Serial.print(ens160.geteCO2());
+    Serial.print("ppm\t");
+    Serial.print("R HP0: ");
+    Serial.print(ens160.getHP0());
+    Serial.print("Ohm\t");
+    Serial.print("R HP1: ");
+    Serial.print(ens160.getHP1());
+    Serial.print("Ohm\t");
+    Serial.print("R HP2: ");
+    Serial.print(ens160.getHP2());
+    Serial.print("Ohm\t");
+    Serial.print("R HP3: ");
+    Serial.print(ens160.getHP3());
+    Serial.println("Ohm");
+  }
+  delay(1000);
 }
 
 void rawGPS()
