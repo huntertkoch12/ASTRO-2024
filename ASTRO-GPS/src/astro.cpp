@@ -185,6 +185,8 @@ void setup()
   changeColorSetup();
   delay(500); // Optional: Add a delay to make the color change noticeable
 
+  initRadio();
+
   // // Initialize Sensor and SD Card
   // initBNO055();
   // changeColorSetup();

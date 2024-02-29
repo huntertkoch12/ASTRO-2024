@@ -44,18 +44,21 @@ void bno_read_multiple(uint8_t i2c_addr, uint8_t reg, uint8_t *buf, uint8_t leng
   }
 }
 
-// BNO055
 
 // Initialize LoRa Radio
 void initRadio()
 {
 
+  Serial.println("Hello World 2!");
+
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(RFM95_RST, OUTPUT);
+
+  Serial.println("Hello World 2.5!");
+
   digitalWrite(RFM95_RST, HIGH);
 
-  Serial.begin(115200);
-  delay(100);
+  Serial.println("Hello World 3!");
 
   Serial.println("LoRa Transmission Test!");
   digitalWrite(RFM95_RST, LOW);
@@ -255,9 +258,9 @@ void initGPS()
   {
     GPS.read();
   }
-  GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
-  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);
-  GPS.sendCommand(PGCMD_ANTENNA);
+
+  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ); // For 10 Hz update rate
+
 }
 
 // Initalize RTC
@@ -317,44 +320,49 @@ String getTimeStamp()
 
 void transmitGPSData()
 {
-  static unsigned int packetCounter = 0; // Packet counter
+  char gpsData[100];
+  float altitude = 0.0; // Default altitude
 
-  // Check if new NMEA data is available
-  while (GPS.available())
+  if (GPS.newNMEAreceived())
   {
-    char c = GPS.read();
-    Serial.print(c); // Print raw GPS data
-    if (GPS.newNMEAreceived())
-    {
-      Serial.println("New NMEA sentence received."); // Debug print
-      if (!GPS.parse(GPS.lastNMEA()))
-      {
-        Serial.println("Failed to parse NMEA sentence."); // Debug print
-        break;                                            // Exit the loop if the sentence can't be parsed
-      }
+    char *nmea = GPS.lastNMEA();
 
-      // Check if we have a GPS fix
+    // Find the start of a valid GNGGA sentence
+    char *gnggaStart = strstr(nmea, "$GNGGA");
+    if (gnggaStart != NULL)
+    {
+      char nmeaBuffer[100]; // Temporary buffer for NMEA sentence
+      strncpy(nmeaBuffer, gnggaStart, sizeof(nmeaBuffer));
+      nmeaBuffer[sizeof(nmeaBuffer) - 1] = '\0'; // Ensure null-termination
+
+      // Parse for altitude from the GNGGA sentence
+      char *token = strtok(nmeaBuffer, ",");
+      int fieldIndex = 0;
+
+      while (token != NULL)
+      {
+        // Altitude is in the 9th field
+        if (fieldIndex == 9)
+        {
+          altitude = atof(token);
+          break; // Exit loop once altitude is found
+        }
+        token = strtok(NULL, ",");
+        fieldIndex++;
+      }
+    }
+
+    // Proceed with GPS data parsing only if we have a valid GNGGA sentence
+    if (GPS.parse(gnggaStart ? gnggaStart : nmea))
+    {
       if (GPS.fix)
       {
-        Serial.println("GPS fix obtained."); // Debug print
-        packetCounter++;                     // Increment the packet counter
+        snprintf(gpsData, sizeof(gpsData), "Lat: %f, Lon: %f, Alt: %f, Time: %02d:%02d:%02d",
+                 GPS.latitudeDegrees, GPS.longitudeDegrees, altitude,
+                 GPS.hour, GPS.minute, GPS.seconds);
 
-        // Prepare the GPS data into a transmission buffer
-        char transmitBuffer[60]; // Increased buffer size to accommodate packet counter
-        snprintf(transmitBuffer, sizeof(transmitBuffer), "Packet %u, Lat:%f%s, Lon:%f%s",
-                 packetCounter,
-                 GPS.latitude, GPS.lat == 'N' ? "N" : "S",
-                 GPS.longitude, GPS.lon == 'E' ? "E" : "W");
-
-        // Transmit the GPS data
-        rf95.send((uint8_t *)transmitBuffer, strlen(transmitBuffer) + 1); // +1 to include null-terminator
-        Serial.println(transmitBuffer);                                   // Debug print
-        break;
-      }
-      else
-      {
-        Serial.println("GPS fix lost."); // Debug print
-        break;                           // Exit the loop if no fix
+        rf95.send((uint8_t *)gpsData, strlen(gpsData));
+        rf95.waitPacketSent();
       }
     }
   }
@@ -516,7 +524,7 @@ void rawGPS()
       nmeaSentence += c;
 
       // Print the full NMEA sentence to the serial
-      Serial.print(nmeaSentence);
+      //Serial.print(nmeaSentence);
 
       // Clear the buffer for the next sentence
       nmeaSentence = "";

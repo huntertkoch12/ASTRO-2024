@@ -25,10 +25,16 @@
 #define RFM95_INT 21
 #define RFM95_RST 17
 #define TX_POWER 23         // Transmit Power (LoRa, dBm)
-#define BANDWIDTH 125       // Bandwidth (LoRa, kHz)
-#define SPREADING_FACTOR 12 // Spreading Factor (LoRa)
-#define CODING_RATE 8       // Coding Rate (LoRa, 4/x)
-#define PREAMBLE_LENGTH 12  // Preamble Length (LoRa)v
+
+#define BANDWIDTH 125      // Bandwidth (LoRa, kHz)
+#define SPREADING_FACTOR 9 // Spreading Factor (LoRa), reduced from 12 for higher data rate
+#define CODING_RATE 5      // Coding Rate (LoRa, 4/5), balance between error correction and data rate
+#define PREAMBLE_LENGTH 8  // Preamble Length (LoRa), reduced from 12 for shorter time on air
+
+// #define BANDWIDTH 125       // Bandwidth (LoRa, kHz)
+// #define SPREADING_FACTOR 12 // Spreading Factor (LoRa)
+// #define CODING_RATE 8       // Coding Rate (LoRa, 4/x)
+// #define PREAMBLE_LENGTH 12  // Preamble Length (LoRa)v
 
 //*******************************************//
 //             GPS Settings                  //

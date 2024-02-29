@@ -15,6 +15,7 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB 
 RTC_DS3231 rtc;
 Adafruit_LSM6DSO32 lsm6dso32;
 ScioSense_ENS160 ens160(0x53);
+Adafruit_BME680 bme;
 
 //*******************************************//
 //            Initialization Block           //
@@ -217,7 +218,7 @@ void setupSDCard()
     handleError();
   }
   // Write headers or other initialization data for Other file
-  otherFile.println("Timestamp, MPL_Pressure, MPL_Altitude, MPL_Temperature, DFLIS_AccelX, DFLIS_AccelY, DFLIS_AccelZ");
+  otherFile.println("Timestamp, MPL_Pressure, MPL_Altitude, MPL_Temperature, BME_Temp, BME_Humidity, BME_Pressure, BME_Gas, BME_Altitude, ENS_TVOC, ENS_eCO2, ENS_AQI, ENS_HP0, ENS_HP1, ENS_HP2, ENS_HP3");
   otherFile.close();
 
   Serial.println("All data logs started.");
@@ -284,7 +285,7 @@ void setupRTC()
     // Manually set the date and time
     // rtc.adjust(DateTime(2023, 1, 21, 3, 0, 0));
     // Or use the compile time: (this will not be accurate if the RTC has lost power)
-    // rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
 }
 
@@ -318,6 +319,37 @@ void initENS160()
 
     // You can add additional error handling here, such as blinking an LED to indicate failure or retrying initialization
   }
+}
+
+void initBME688()
+{
+  if (!bme.begin())
+  {
+    Serial.println("Could not find a valid BME680 sensor, check wiring!");
+    while (1)
+      ;
+  }
+
+  Serial.println("Found the BME680!");
+
+  // Set up oversampling and filter initialization
+  bme.setTemperatureOversampling(BME680_OS_8X);
+  bme.setHumidityOversampling(BME680_OS_2X);
+  bme.setPressureOversampling(BME680_OS_4X);
+  bme.setIIRFilterSize(BME680_FILTER_SIZE_3);
+  bme.setGasHeater(320, 150); // 320*C for 150 ms
+}
+
+void initMicrophone()
+{
+  // Initialize ADC
+  adc_init();
+
+  // Select ADC input 0 (GPIO 26) as the analog source
+  adc_gpio_init(A0);
+
+  // Set ADC reference voltage (3.3V for RP2040)
+  adc_set_temp_sensor_enabled(false);
 }
 
 // Set GPS rate
@@ -516,12 +548,25 @@ void logDataToSD()
   float mplAltitude = baro.getAltitude();
   float mplTemperature = baro.getTemperature();
 
-  // Log Other data
+  // Log combined data
   if (otherFile.open(OTHER_FILE_NAME, O_WRITE | O_APPEND))
   {
     otherFile.print(timeStamp + ", ");
     otherFile.print(String(mplPressure) + ", " + String(mplAltitude) + ", " + String(mplTemperature) + ", ");
-    // otherFile.println(String(dfLisAccelX) + ", " + String(dfLisAccelY) + ", " + String(dfLisAccelZ));
+
+    // Append BME688 data
+    otherFile.print(String(bme.temperature) + ", ");
+    otherFile.print(String(bme.humidity) + ", ");
+    otherFile.print(String(bme.pressure / 100.0) + ", ");
+    otherFile.print(String(bme.readAltitude(SEALEVELPRESSURE_HPA)) + ", ");
+    otherFile.print(String(bme.gas_resistance / 1000.0) + ", ");
+
+    // Append ENS160 data
+    otherFile.print(String(ens160.getTVOC()) + ", ");
+    otherFile.print(String(ens160.geteCO2()) + ", ");
+    otherFile.print(String(ens160.getAQI()) + ", ");
+    otherFile.println(String(ens160.getHP0()) + ", " + String(ens160.getHP1()) + ", " + String(ens160.getHP2()) + ", " + String(ens160.getHP3()));
+
     otherFile.sync();
     otherFile.close();
   }
@@ -569,6 +614,53 @@ void logENS160()
     Serial.println("Ohm");
   }
   delay(1000);
+}
+
+void logBME688()
+{
+  if (!bme.performReading())
+  {
+    Serial.println("Failed to perform reading :(");
+    return;
+  }
+  Serial.print("Temperature = ");
+  Serial.print(bme.temperature);
+  Serial.println(" *C");
+
+  Serial.print("Pressure = ");
+  Serial.print(bme.pressure / 100.0);
+  Serial.println(" hPa");
+
+  Serial.print("Humidity = ");
+  Serial.print(bme.humidity);
+  Serial.println(" %");
+
+  Serial.print("Gas = ");
+  Serial.print(bme.gas_resistance / 1000.0);
+  Serial.println(" KOhms");
+
+  Serial.print("Approx. Altitude = ");
+  Serial.print(bme.readAltitude(SEALEVELPRESSURE_HPA));
+  Serial.println(" m");
+
+  Serial.println();
+  delay(2000);
+}
+
+void logMicrophone()
+{
+
+  // Select ADC input channel
+  adc_select_input(0); // Channel 0 corresponds to GPIO 26 on most boards
+
+  // Read the analog value
+  uint16_t analogValue = adc_read();
+
+  // Print the raw analog value
+  Serial.println(analogValue);
+
+  // Wait a bit before the next read
+  delay(100); // Delay in milliseconds
 }
 
 void rawGPS()

@@ -16,6 +16,15 @@
 #include <RTClib.h>
 #include <Adafruit_LSM6DSO32.h>
 #include "ScioSense_ENS160.h"
+#include "Adafruit_BME680.h"
+#include "pico/stdlib.h"
+#include "hardware/adc.h"
+
+//*******************************************//
+//               Constants                   //
+//*******************************************//
+
+#define SEALEVELPRESSURE_HPA (1013.25)
 
 //*******************************************//
 //             LoRa Settings                 //
@@ -108,6 +117,14 @@ void setupRTC();
 // ENS160 Functions
 void initENS160();
 void logENS160();
+
+// BME Functions
+void initBME688();
+void logBME688();
+
+// Microphone Functions
+void initMicrophone();
+void logMicrophone();
 
 // Backup IMU Function
 void initLSM6DSO32();

@@ -74,6 +74,14 @@ extern void initLSM6DSO32();
 extern void initENS160();
 extern void logENS160();
 
+// BME688
+extern void initBME688();
+extern void logBME688();
+
+// Microphone
+extern void initMicrophone();
+extern void logMicrophone();
+
 // RTC Functions
 extern void setupRTC();
 
@@ -187,37 +195,45 @@ void setup()
   Wire.begin(); // Use default I2C pins
   SPI.begin();  // Use default SPI pins
   changeColorSetup();
-  delay(500); // Optional: Add a delay to make the color change noticeable
+  delay(500);
 
   // Initialize Sensor and SD Card
   initBNO055();
   changeColorSetup();
-  delay(500); // Optional: Add a delay to make the color change noticeable
+  delay(500);
 
   setupSDCard();
   changeColorSetup();
-  delay(500); // Optional: Add a delay to make the color change noticeable
+  delay(500);
 
   initMPL3115A2();
   changeColorSetup();
-  delay(500); // Optional: Add a delay to make the color change noticeable
+  delay(500);
 
   // initGPS();
   // setGPSUpdateRate(2000);
   // changeColorSetup();
-  // delay(500); // Optional: Add a delay to make the color change noticeable
+  // delay(500);
 
   initLSM6DSO32();
   changeColorSetup();
-  delay(500); // Optional: Add a delay to make the color change noticeable
+  delay(500);
 
   initENS160();
   changeColorSetup();
   delay(500);
 
+  initBME688();
+  changeColorSetup();
+  delay(500);
+
+  initMicrophone();
+  changeColorSetup();
+  delay(500);
+
   setupRTC();
   changeColorSetup();
-  delay(500); // Optional: Add a delay to make the color change noticeable
+  delay(500);
 }
 
 //*******************************************//
@@ -239,10 +255,16 @@ void loop()
   // logMPL3115A2Data();
 
   // Log Data from ENS160 Sensor
-  logENS160();
+  // logENS160();
+
+  // Log Data from BME688 Sensor
+  // logBME688();
+
+  // Log Data from Microphone Sensor
+  logMicrophone();
 
   // Log Data from RTC Clock
-  printRTCDateTime();
+  // printRTCDateTime();
 }
 
 //*******************************************//
