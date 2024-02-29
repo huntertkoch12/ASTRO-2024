@@ -209,7 +209,6 @@ void handleRoot()
     <h1>GPS Data</h1>
     <div id="gps">Loading...</div>
     <div id="arrow"></div>
-    <!-- Button to initially activate speech -->
     <button onclick="activateSpeech()">Activate Speech</button>
     <script>
       let speechActivated = false;
@@ -217,31 +216,19 @@ void handleRoot()
 
       function activateSpeech() {
         speechActivated = true;
-        // Initial activation message
-        speak("Speech activated.", startCountdown);
+        speak("Speech activated.");
       }
 
-      function speak(text, onEnd = null) {
+      function speak(text) {
         if (!speechActivated) return; // Only speak if activated by the user
 
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.onend = () => {
-          if (onEnd) onEnd();
-        };
-        speechSynthesis.speak(utterance);
-      }
-
-      function startCountdown() {
-        countdown(5);
-      }
-
-      function countdown(number) {
-        if (number > 0) {
-          speak(number.toString(), () => countdown(number - 1));
-        } else {
-          // After countdown, speak the altitude
-          speakAltitude(currentAltitude);
+        // Cancel the queue if it's too long to avoid delays
+        if (speechSynthesis.speaking || speechSynthesis.pending) {
+          speechSynthesis.cancel();
         }
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        speechSynthesis.speak(utterance);
       }
 
       function updateGPS() {
@@ -257,21 +244,18 @@ void handleRoot()
             }
             const altitudeLine = lines.find(line => line.includes('Alt:'));
             if (altitudeLine) {
-              const newAltitude = altitudeLine.split('Alt: ')[1].split(' ')[0];
+              // Truncate the altitude to a whole number
+              const newAltitude = Math.floor(parseFloat(altitudeLine.split('Alt: ')[1].split(' ')[0]));
               if (newAltitude !== currentAltitude) {
                 currentAltitude = newAltitude;
                 // Speak the new altitude if speech is activated
                 if (speechActivated) {
-                  speakAltitude(currentAltitude);
+                  speak('Current altitude is ' + currentAltitude + ' meters');
                 }
               }
             }
           })
           .catch(console.error);
-      }
-
-      function speakAltitude(altitude) {
-        speak('Current altitude is ' + altitude + ' meters');
       }
 
       setInterval(updateGPS, 1000); // Update every second
