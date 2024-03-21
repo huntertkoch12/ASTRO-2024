@@ -14,9 +14,12 @@ WebServer server(80); // HTTP server on port 80
 
 String gpsData = "Waiting for GPS data..."; // Variable to store the latest GPS data
 String onboardGPSData = "Waiting for onboard GPS data...";
+String gpsSentence = ""; // Buffer to hold incoming GPS data
 
 void handleRoot();
 void handleGPSData();
+void updateOnboardGPSData(String sentence);
+double convertToDegrees(String nmeaPos);
 
 // T-Beam Pin Definitions
 #define RADIO_SCLK_PIN 5
@@ -48,8 +51,8 @@ void handleGPSData();
 #define I2C_SDA 21
 #define I2C_SCL 22
 
-// Singleton instance of the radio driver
-RH_RF95 rf95(RADIO_CS_PIN, RADIO_DIO0_PIN);
+    // Singleton instance of the radio driver
+    RH_RF95 rf95(RADIO_CS_PIN, RADIO_DIO0_PIN);
 
 // OLED Display instance
 U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R0, I2C_SCL, I2C_SDA, U8X8_PIN_NONE);
@@ -117,6 +120,9 @@ void setup()
 
 void loop()
 {
+  static unsigned long lastGPSTime = 0; // Last time the GPS data was updated
+  unsigned long currentMillis = millis();
+
   uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
   uint8_t len = sizeof(buf);
 
@@ -147,19 +153,29 @@ void loop()
     }
   }
 
+  // Read the GPS data
   while (Serial1.available() > 0)
   {
-    if (gps.encode(Serial1.read()))
+    char c = Serial1.read();
+
+    // Print each character as it's read from the GPS
+    Serial.print(c);
+
+    // Append the read character to the gpsSentence buffer
+    if (c != '\n' && c != '\r')
+    { // Ignore newline and carriage return characters
+      gpsSentence += c;
+    }
+
+    // Check if the sentence is complete (end with newline)
+    if (c == '\n')
     {
-      if (gps.location.isValid())
+      // Check if the sentence is a GPGGA sentence
+      if (gpsSentence.startsWith("$GPGGA"))
       {
-        // Update the onboardGPSData string with the current coordinates
-        onboardGPSData = "Onboard GPS - Lat: " + String(gps.location.lat(), 6) +
-                         ", Lon: " + String(gps.location.lng(), 6) +
-                         ", Alt: " + String(gps.altitude.meters()) +
-                         ", Time: " + String(gps.time.hour()) + ":" +
-                         String(gps.time.minute()) + ":" + String(gps.time.second());
+        updateOnboardGPSData(gpsSentence); // Update GPS data using the complete sentence
       }
+      gpsSentence = ""; // Clear the buffer for the next sentence
     }
   }
 
@@ -168,6 +184,62 @@ void loop()
 }
 
 // Functions
+
+void updateOnboardGPSData(String sentence)
+{
+  // Split the sentence into its comma-separated components
+  String fields[15]; // GPGGA has up to 15 fields
+  int fieldIndex = 0;
+
+  for (int i = 0; i < sentence.length() && fieldIndex < 15; i++)
+  {
+    int commaIndex = sentence.indexOf(',', i);
+    if (commaIndex == -1)
+    { // No more commas
+      fields[fieldIndex++] = sentence.substring(i);
+      break;
+    }
+    else
+    {
+      fields[fieldIndex++] = sentence.substring(i, commaIndex);
+      i = commaIndex;
+    }
+  }
+
+  // Now fields[] contains all the parts of the GPGGA sentence
+  String time = fields[1];
+  String latitude = fields[2];
+  String latDirection = fields[3];
+  String longitude = fields[4];
+  String lonDirection = fields[5];
+  String fixQuality = fields[6];
+  String satellites = fields[7];
+  String altitude = fields[9];
+
+  // Convert latitude and longitude to a more readable format
+  double lat = convertToDegrees(latitude);
+  if (latDirection == "S")
+    lat = -lat;
+  double lon = convertToDegrees(longitude);
+  if (lonDirection == "W")
+    lon = -lon;
+
+  // Update the onboardGPSData with the parsed values
+  onboardGPSData = "Onboard GPS - Lat: " + String(lat, 6) +
+                   ", Lon: " + String(lon, 6) +
+                   ", Alt: " + altitude +
+                   ", Time: " + time.substring(0, 2) + ":" +
+                   time.substring(2, 4) + ":" + time.substring(4, 6);
+  Serial.println(onboardGPSData); // Print the GPS data string for debugging
+}
+
+double convertToDegrees(String nmeaPos)
+{
+  double rawValue = nmeaPos.toDouble();
+  int degrees = int(rawValue / 100);
+  double minutes = rawValue - (degrees * 100);
+  return degrees + (minutes / 60);
+}
 
 void displayMessage(const char *message)
 {
@@ -250,7 +322,7 @@ void handleRoot()
                 currentAltitude = newAltitude;
                 // Speak the new altitude if speech is activated
                 if (speechActivated) {
-                  speak('Current altitude is ' + currentAltitude + ' meters');
+                  speak(currentAltitude + ' meters');
                 }
               }
             }
@@ -281,10 +353,8 @@ float calcBearing(float lat1, float long1, float lat2, float long2)
   return bearing;
 }
 
-void handleGPSData()
-{
-  // Assuming you have a way to determine your target coordinates
-  // Parse latitude and longitude from the gpsData string
+void handleGPSData() {
+  // Parse target latitude and longitude from the gpsData string
   int latStart = gpsData.indexOf("Lat: ") + 5;
   int latEnd = gpsData.indexOf(",", latStart);
   float targetLat = gpsData.substring(latStart, latEnd).toFloat();
@@ -293,18 +363,26 @@ void handleGPSData()
   int lonEnd = gpsData.indexOf(",", lonStart);
   float targetLong = gpsData.substring(lonStart, lonEnd).toFloat();
 
-  // Use the current onboard GPS data for currentLat and currentLong
-  float currentLat = gps.location.lat();
-  float currentLong = gps.location.lng();
+  // Parse current latitude and longitude from the onboardGPSData string
+  latStart = onboardGPSData.indexOf("Lat: ") + 5;
+  latEnd = onboardGPSData.indexOf(",", latStart);
+  float currentLat = onboardGPSData.substring(latStart, latEnd).toFloat();
 
+  lonStart = onboardGPSData.indexOf("Lon: ", latEnd) + 5;
+  lonEnd = onboardGPSData.indexOf(",", lonStart);
+  float currentLong = onboardGPSData.substring(lonStart, lonEnd).toFloat();
+
+  // Calculate the bearing from current location to target location
   float bearing = calcBearing(currentLat, currentLong, targetLat, targetLong);
 
+  // Prepare the data string to send back to the client
   String data = "Received GPS Data: " + gpsData + "\n" +
                 "Onboard GPS Data: " + onboardGPSData + "\n" +
                 "Bearing: " + String(bearing, 2) + "°";
+
+  // Send the data as a plain text response
   server.send(200, "text/plain", data);
 }
-
 
 // void handleRoot()
     // {
