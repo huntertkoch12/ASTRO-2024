@@ -19,6 +19,8 @@
 #include "Adafruit_BME680.h"
 #include "pico/stdlib.h"
 #include "hardware/adc.h"
+#include <Adafruit_BNO055.h>
+
 
 //*******************************************//
 //               Constants                   //
@@ -30,7 +32,7 @@
 //             LoRa Settings                 //
 //*******************************************//
 
-#define RF95_FREQ 921.0 // LoRa Frequency (MHz)
+#define RF95_FREQ 905.0 // LoRa Frequency (MHz)
 #define RFM95_CS 16
 #define RFM95_INT 21
 #define RFM95_RST 17
@@ -128,6 +130,7 @@ void logMicrophone();
 
 // Backup IMU Function
 void initLSM6DSO32();
+
 
 /*
  * RP2040 Pin Configuration for Sensors

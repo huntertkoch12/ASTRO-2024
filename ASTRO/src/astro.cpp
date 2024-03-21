@@ -197,7 +197,7 @@ void setup()
   changeColorSetup();
   delay(500);
 
-  // Initialize Sensor and SD Card
+  // // Initialize Sensor and SD Card
   initBNO055();
   changeColorSetup();
   delay(500);
@@ -248,7 +248,7 @@ void loop()
 
   /* Debug */
 
-  // Log Data from BNO055 Sensor
+  // // Log Data from BNO055 Sensor
   // logBNO055Data();
 
   // Log Data from Altimeter Sensor
@@ -261,7 +261,7 @@ void loop()
   // logBME688();
 
   // Log Data from Microphone Sensor
-  logMicrophone();
+  // logMicrophone();
 
   // Log Data from RTC Clock
   // printRTCDateTime();

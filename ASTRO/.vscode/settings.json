@@ -1,0 +1,4 @@
+{
+    "idf.port": "/dev/cu.usbmodem2101",
+    "cmake.sourceDirectory": "/Users/rpaillet/Documents/PlatformIO/Rocketry/Payload/ASTRO-2024/ASTRO/.pio/libdeps/pico/Adafruit BusIO"
+}
